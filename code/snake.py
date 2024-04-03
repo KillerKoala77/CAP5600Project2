@@ -6,8 +6,8 @@ def main():
     pygame.init()
     
     # Set window size
-    screenWidth = 800
-    screenHeight = 500
+    screenWidth = 400
+    screenHeight = 240
     
     # create screen and main game bool
     screen = pygame.display.set_mode((screenWidth, screenHeight))
@@ -19,13 +19,14 @@ def main():
     speedY = 0
     
     # Default snake coordinates and length
-    snakeX = screenWidth / 2
+    snakeX = screenWidth / 4 + 50
     snakeY = screenHeight / 2
-    snakeLen = 1
+    snakeLen = 4
     snakeBody = []
-    
+    for x in range(4):
+        snakeBody.append((screenWidth / 4 + ((x * 10) + 10), snakeY))
     # Snake speed and populate clock
-    speed = 20
+    speed = 30
     clock = pygame.time.Clock()
     
     # RGB values
@@ -33,8 +34,8 @@ def main():
     red = (250, 0, 0)
     
     # Default fruit condition
-    fruitX = round(random.randint(0, screenWidth) / 10) * 10
-    fruitY = round(random.randint(0, screenHeight) / 10) * 10
+    fruitX = 20 #round(random.randint(0, screenWidth) / 10) * 10
+    fruitY = 20 #round(random.randint(0, screenHeight) / 10) * 10
     
     
     
@@ -44,6 +45,12 @@ def main():
         if not gameOver:
             # Generate screen
             screen.fill((50,50,50))
+
+            for x in range(int(screenHeight/10)):
+                pygame.draw.line(screen, (20,20,20), (0,x*10), (screenWidth,x*10))
+
+            for x in range(int(screenWidth/10)):
+                pygame.draw.line(screen, (20,20,20), (x*10, 0), (x*10, screenHeight))
             
             # Draw snake head
             pygame.draw.rect(screen, green, [snakeX, snakeY, 10, 10])
@@ -87,6 +94,56 @@ def main():
             
             # Iterate timer
             clock.tick(speed)
+
+            # AI
+            # use fruit x,y and snake head x,y
+            # have the head check all 4 directions and calculate manhatten distance
+            # best option wins, go that direction
+
+            bestDirection = ""
+            bestValue = 100000000
+            temp = 0
+            # check up
+            if (snakeX, snakeY - 10) not in snakeBody:
+                temp = abs(snakeX - fruitX) + abs(snakeY - 10 - fruitY)
+                if temp < bestValue:
+                    bestValue = temp
+                    bestDirection = "UP"
+
+            # check down
+            if (snakeX, snakeY + 10) not in snakeBody:
+                temp = abs(snakeX - fruitX) + abs(snakeY + 10 - fruitY)
+                if temp < bestValue:
+                    bestValue = temp
+                    bestDirection = "DOWN"
+            # check left
+            if (snakeX - 10, snakeY) not in snakeBody:
+                temp = abs(snakeX - 10 - fruitX) + abs(snakeY - fruitY)
+                if temp < bestValue:
+                    bestValue = temp
+                    bestDirection = "LEFT"
+
+            #check right
+            if (snakeX + 10, snakeY) not in snakeBody:
+                temp = abs(snakeX + 10 - fruitX) + abs(snakeY - fruitY)
+                if temp < bestValue:
+                    bestValue = temp
+                    bestDirection = "RIGHT"
+
+            if bestDirection == "UP":
+                speedX = 0
+                speedY = -10
+            elif bestDirection == "DOWN":
+                speedX = 0
+                speedY = 10
+            elif bestDirection == "LEFT":
+                speedX = -10
+                speedY = 0
+            elif bestDirection == "RIGHT":
+                speedX = 10
+                speedY = 0
+            else:
+                running = False
             
             # Collect keyboard input
             for event in pygame.event.get():
