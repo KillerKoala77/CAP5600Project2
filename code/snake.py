@@ -1,5 +1,152 @@
 import pygame
 import random
+import time
+
+class Coordinate:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+    def __eq__(self, other: object) -> bool:
+        return self.x == other.x and self.y == other.y
+
+    def __copy__(self):
+        cls = self.__class__
+        result = cls.__new__(cls)
+        result.__dict__.update(self.__dict__)
+        return result
+        
+
+class Node:
+
+    def __init__(self, parent, position: Coordinate):
+        self.parent = parent
+        self.position = position
+
+        self.g = 0
+        self.f = 0
+
+    # Override equality operator
+    def __eq__(self, other: object) -> bool:
+        return self.position == other.position
+
+def gbfs(fruitX, fruitY, headX, headY, body):
+    # use fruit x,y and snake head x,y
+    # have the head check all 4 directions and calculate manhatten distance
+    # best option wins, go that direction
+    
+    bestDirection = ""
+    bestValue = 100000000
+    temp = 0
+    # check up
+    if (headX, headY - 10) not in body:
+        temp = abs(headX - fruitX) + abs(headY - 10 - fruitY)
+        if temp < bestValue:
+            bestValue = temp
+            bestDirection = "UP"
+
+    # check down
+    if (headX, headY + 10) not in body:
+        temp = abs(headX - fruitX) + abs(headY + 10 - fruitY)
+        if temp < bestValue:
+            bestValue = temp
+            bestDirection = "DOWN"
+            
+    # check left
+    if (headX - 10, headY) not in body:
+        temp = abs(headX - 10 - fruitX) + abs(headY - fruitY)
+        if temp < bestValue:
+            bestValue = temp
+            bestDirection = "LEFT"
+
+    #check right
+    if (headX + 10, headY) not in body:
+        temp = abs(headX + 10 - fruitX) + abs(headY - fruitY)
+        if temp < bestValue:
+            bestValue = temp
+            bestDirection = "RIGHT"
+
+    return bestDirection
+
+def aStarSearch(fruit: Coordinate, head: Coordinate, body, boardSize: tuple):
+
+    # Head is the start of the search
+    startNode = Node(None, head)
+
+    # Fruit is the end of the search
+    fruitNode = Node(None, fruit)
+
+    # Start with the start node in the frontier
+    frontier = [startNode]
+    searchedNodes = []
+
+    # We will search UP, DOWN, LEFT and RIGHT
+    searchDirections = [(0, -10), (0, 10), (-10, 0), (10, 0)]
+
+    # Search while we have new places to search
+    while len(frontier) > 0:
+        # Take the first node of the frontier
+        currentNode = frontier.pop(0)
+
+        # Add it to the list of searched nodes
+        searchedNodes.append(currentNode)
+
+        if(currentNode == fruitNode):
+            return currentNode
+            # We found the fruit
+            # TODO: Return path
+
+        nextNodes = []
+
+        for nextMove in searchDirections:
+
+            position = Coordinate(currentNode.position.x + nextMove[0], currentNode.position.y + nextMove[1])
+
+            # Check if new position is valid
+            if position.x > boardSize[0] or position.x < 0 or position.y > boardSize[1] or position.y < 0:
+                continue
+
+            # Check if new position is part of snake body
+            if position in body:
+                continue
+
+            # This location is valid, create new node
+            newNode = Node(currentNode, position)
+
+            # Check if node has already been searched
+            if newNode in searchedNodes:
+                continue
+
+            # Node is valid and never been searched, set g and f
+            newNode.g = currentNode.g + 1
+
+            # F is the manhatten distance to the fruit node
+            newNode.f = abs(newNode.position.x - fruitNode.position.x) + abs(newNode.position.y - fruitNode.position.y)
+
+            found = False
+            for frontierNode in frontier:
+                if frontierNode == newNode:
+                    found = True
+                    if newNode.g <= frontierNode.g:
+                        frontier.remove(frontierNode)
+                    break
+                
+            if not found:
+                frontier.append(newNode)
+
+        frontier.sort(key=lambda x: x.f)
+
+    time.sleep(1)
+                
+
+            
+                        
+
+            
+
+
+
+    
 
 def main():
     
@@ -19,12 +166,15 @@ def main():
     speedY = 0
     
     # Default snake coordinates and length
+    snakePosition = Coordinate(screenWidth / 4 + 50, screenHeight / 2)
     snakeX = screenWidth / 4 + 50
     snakeY = screenHeight / 2
     snakeLen = 4
     snakeBody = []
     for x in range(4):
-        snakeBody.append((screenWidth / 4 + ((x * 10) + 10), snakeY))
+        t = screenWidth / 4
+        s = ((x * 10) + 10)
+        snakeBody.append(Coordinate(t + s, snakeY))
     # Snake speed and populate clock
     speed = 30
     clock = pygame.time.Clock()
@@ -34,8 +184,11 @@ def main():
     red = (250, 0, 0)
     
     # Default fruit condition
-    fruitX = 20 #round(random.randint(0, screenWidth) / 10) * 10
-    fruitY = 20 #round(random.randint(0, screenHeight) / 10) * 10
+    fruitPosition = Coordinate(round(random.randint(0, screenWidth) / 10) * 10, round(random.randint(0, screenHeight) / 10) * 10)
+    fruitX = round(random.randint(0, screenWidth) / 10) * 10
+    fruitY = round(random.randint(0, screenHeight) / 10) * 10
+
+    path = []
     
     
     
@@ -53,41 +206,43 @@ def main():
                 pygame.draw.line(screen, (20,20,20), (x*10, 0), (x*10, screenHeight))
             
             # Draw snake head
-            pygame.draw.rect(screen, green, [snakeX, snakeY, 10, 10])
+            pygame.draw.rect(screen, green, [snakePosition.x, snakePosition.y, 10, 10])
             
             # Record head locations
-            snakeBody.append((snakeX, snakeY))
+            snakeBody.append(Coordinate(snakePosition.x, snakePosition.y))
             
             # Draw snake tail
             if len(snakeBody) > snakeLen:
                 del snakeBody[:-snakeLen]
             
             for block in snakeBody:
-                pygame.draw.rect(screen, green, [block[0], block[1], 10, 10])
+                pygame.draw.rect(screen, green, [block.x, block.y, 10, 10])
                 
             # Draw fruit
-            pygame.draw.rect(screen, red, [fruitX, fruitY, 10, 10])
+            pygame.draw.rect(screen, red, [fruitPosition.x, fruitPosition.y, 10, 10])
             
             # Update snake head x and y coordinates
-            snakeX += speedX
-            snakeY += speedY
+            snakePosition.x += speedX
+            snakePosition.y += speedY
             
             # Update fruit coordinates
-            if snakeX == fruitX and snakeY == fruitY:
+            if snakePosition == fruitPosition:
                 snakeLen += 1
-                fruitX = round(random.randint(0, screenWidth - 10) / 10) * 10
-                fruitY = round(random.randint(0, screenHeight - 10) / 10) * 10    
+                fruitPosition.x = round(random.randint(0, screenWidth - 10) / 10) * 10
+                fruitPosition.y = round(random.randint(0, screenHeight - 10) / 10) * 10    
             
             # Collision with wall
-            if snakeX < 0 or snakeX > screenWidth:
+            if snakePosition.x < 0 or snakePosition.x > screenWidth:
                 gameOver = True
-            if snakeY < 0 or snakeY > screenHeight:
+            if snakePosition.y < 0 or snakePosition.y > screenHeight:
                 gameOver = True
                 
             # Collision with body
-            for block in snakeBody:
-                if block[0] == snakeX and block[1] == snakeY:
-                    gameOver = True
+            if snakePosition in snakeBody:
+                gameOver = True
+            # for block in snakeBody:
+            #     if block[0] == snakeX and block[1] == snakeY:
+            #         gameOver = True
             
             # Update display
             pygame.display.flip()
@@ -95,55 +250,53 @@ def main():
             # Iterate timer
             clock.tick(speed)
 
-            # AI
-            # use fruit x,y and snake head x,y
-            # have the head check all 4 directions and calculate manhatten distance
-            # best option wins, go that direction
+            # If there is no defined path, calculate one
+            if len(path) == 0:
+                # AI
+                #bestDirection = gbfs(fruitX, fruitY, snakeX, snakeY, snakeBody)
 
-            bestDirection = ""
-            bestValue = 100000000
-            temp = 0
-            # check up
-            if (snakeX, snakeY - 10) not in snakeBody:
-                temp = abs(snakeX - fruitX) + abs(snakeY - 10 - fruitY)
-                if temp < bestValue:
-                    bestValue = temp
-                    bestDirection = "UP"
+                result = aStarSearch(fruitPosition, snakePosition, snakeBody, (screenWidth, screenHeight))
 
-            # check down
-            if (snakeX, snakeY + 10) not in snakeBody:
-                temp = abs(snakeX - fruitX) + abs(snakeY + 10 - fruitY)
-                if temp < bestValue:
-                    bestValue = temp
-                    bestDirection = "DOWN"
-            # check left
-            if (snakeX - 10, snakeY) not in snakeBody:
-                temp = abs(snakeX - 10 - fruitX) + abs(snakeY - fruitY)
-                if temp < bestValue:
-                    bestValue = temp
-                    bestDirection = "LEFT"
+                
+                current = Node(result.parent, result.position)
+                
+                # Walk backwards through all parents to build a path
+                while current is not None:
+                    path.append(current.position)
+                    current = current.parent
 
-            #check right
-            if (snakeX + 10, snakeY) not in snakeBody:
-                temp = abs(snakeX + 10 - fruitX) + abs(snakeY - fruitY)
-                if temp < bestValue:
-                    bestValue = temp
-                    bestDirection = "RIGHT"
+                if len(path) == 0:
+                    time.sleep(1)
+                    
+                # Remove last position as that is equal to the current head
+                path.pop()
 
-            if bestDirection == "UP":
-                speedX = 0
-                speedY = -10
-            elif bestDirection == "DOWN":
-                speedX = 0
-                speedY = 10
-            elif bestDirection == "LEFT":
-                speedX = -10
-                speedY = 0
-            elif bestDirection == "RIGHT":
-                speedX = 10
-                speedY = 0
-            else:
-                running = False
+
+            nextMove = path.pop()
+
+            speedX = nextMove.x - snakePosition.x
+            speedY = nextMove.y - snakePosition.y
+
+            # AI A*
+            # from current head, check valid moves.
+            # add valid moves plus f value to sorted list
+            # pop best move from top of list and make it current head
+            # repeat
+
+            # if bestDirection == "UP":
+            #     speedX = 0
+            #     speedY = -10
+            # elif bestDirection == "DOWN":
+            #     speedX = 0
+            #     speedY = 10
+            # elif bestDirection == "LEFT":
+            #     speedX = -10
+            #     speedY = 0
+            # elif bestDirection == "RIGHT":
+            #     speedX = 10
+            #     speedY = 0
+            # else:
+            #     gameOver = True
             
             # Collect keyboard input
             for event in pygame.event.get():
