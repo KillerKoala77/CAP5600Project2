@@ -248,9 +248,12 @@ class SnakeGame:
             actVals = self.QTable[state]
             print(actVals)
             
-            # Fix this
-            maxVal = max(actVals, key=lambda x: x[1])
-            actionChoice = maxVal[0]
+            #self.QTable[curState] = {1 : 0, 2 : 0, 3 : 0, 4 : 0}
+            
+            actionVals = self.QTable[state]
+            actionChoice = max(actionVals, key=actionVals.get)
+
+            
             
         self.history.append((state, actionChoice))
         
@@ -261,6 +264,7 @@ class SnakeGame:
     def updateQTable(self, choice):
         curState = self.getState()
         prevState = self.history[-1]
+        prevAction = prevState[1]
         reward = 0        
         
         # State
@@ -297,11 +301,11 @@ class SnakeGame:
         
         # Bellman Equation
         if curState not in self.QTable:
-            self.QTable[curState] = []
+            self.QTable[curState] = {1 : 0, 2 : 0, 3 : 0, 4 : 0}
         #self.QTable[curState].append((choice, reward))
         
         # Not working
-        #self.QTable[curState][prevState[1]] = .999 * self.QTable[curState][prevState[1]] + 0.001 * reward
+        self.QTable[curState][prevAction] = .999 * self.QTable[curState][prevState[1]] + 0.001 * float(reward)
         
         
         #QTable needs to look like this: fix in lookup in choose action function too
