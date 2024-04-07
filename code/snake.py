@@ -285,18 +285,18 @@ class SnakeGame:
 
             
         # Fruit attained
-        if curState[0] == self.fruitX and curState[1] == self.fruitY:
-            reward += 20
+        if self.snakeX == self.fruitX and self.snakeY == self.fruitY:
+            reward += 50
             
         # Death by wall
-        if curState[0] < 0 or curState[0] > self.screenWidth:
+        if self.snakeX < 0 or self.snakeX > self.screenWidth:
             reward -= 50
-        if curState[1] < 0 or curState[1] > self.screenHeight:
+        if self.snakeY < 0 or self.snakeY > self.screenHeight:
             reward -= 50
             
         # Death by body
         for block in self.snakeBody:
-            if block[0] == curState[0] and block[1] == curState[1]:
+            if block[0] == self.snakeX and block[1] == self.snakeY:
                 reward -= 50
         
         # Bellman Equation
@@ -305,7 +305,7 @@ class SnakeGame:
         #self.QTable[curState].append((choice, reward))
         
         # Not working
-        self.QTable[curState][prevAction] = .999 * self.QTable[curState][prevState[1]] + 0.001 * float(reward)
+        self.QTable[curState][prevAction] = .999 * self.QTable[curState][prevAction] + 0.001 * float(reward)
         
         
         #QTable needs to look like this: fix in lookup in choose action function too
