@@ -1,10 +1,21 @@
 import pygame
 import random
+import torch
+import torch.nn as nn
+import torch.optim as optim
 
+
+
+    
 class SnakeGame:
     def __init__(self):
     
         pygame.init()
+        
+        # QTable needs to be initialized to all 0's
+        self.QTable = {}
+        self.history = []
+        self.gameCount = 0
         
         # Set window size
         self.screenWidth = 400
@@ -44,9 +55,31 @@ class SnakeGame:
         # Main game loop
         while self.running:
             
+            
             if not self.gameOver:
+                
+                choice = self.getAction()
+                print("Choice: ", choice)
+                
+                if choice == 1:
+                    self.speedX = -10
+                    self.speedY = 0
+                if choice == 2:
+                    self.speedX = 0
+                    self.speedY = -10
+                if choice == 3:
+                    self.speedX = 10
+                    self.speedY = 0
+                if choice == 4:
+                    self.speedX = 0
+                    self.speedY = 10
+                
+                
+                
+                
                 # Generate screen
                 self.screen.fill((50,50,50))
+                pygame.display.set_caption("Game: " + str(self.gameCount))
 
                 for x in range(int(self.screenHeight/10)):
                     pygame.draw.line(self.screen, (20,20,20), (0,x*10), (self.screenWidth,x*10))
@@ -98,55 +131,28 @@ class SnakeGame:
                 self.clock.tick(self.speed)
 
                 # AI
-                # use fruit x,y and snake head x,y
-                # have the head check all 4 directions and calculate manhatten distance
-                # best option wins, go that direction
-
-                self.bestDirection = ""
-                self.bestValue = 100000000
-                self.temp = 0
-                # check up
-                if (self.snakeX, self.snakeY - 10) not in self.snakeBody:
-                    self.temp = abs(self.snakeX - self.fruitX) + abs(self.snakeY - 10 - self.fruitY)
-                    if self.temp < self.bestValue:
-                        self.bestValue = self.temp
-                        self.bestDirection = "UP"
-
-                # check down
-                if (self.snakeX, self.snakeY + 10) not in self.snakeBody:
-                    self.temp = abs(self.snakeX - self.fruitX) + abs(self.snakeY + 10 - self.fruitY)
-                    if self.temp < self.bestValue:
-                        self.bestValue = self.temp
-                        self.bestDirection = "DOWN"
-                # check left
-                if (self.snakeX - 10, self.snakeY) not in self.snakeBody:
-                    self.temp = abs(self.snakeX - 10 - self.fruitX) + abs(self.snakeY - self.fruitY)
-                    if self.temp < self.bestValue:
-                        self.bestValue = self.temp
-                        self.bestDirection = "LEFT"
-
-                #check right
-                if (self.snakeX + 10, self.snakeY) not in self.snakeBody:
-                    self.temp = abs(self.snakeX + 10 - self.fruitX) + abs(self.snakeY - self.fruitY)
-                    if self.temp < self.bestValue:
-                        self.bestValue = self.temp
-                        self.bestDirection = "RIGHT"
-
-                if self.bestDirection == "UP":
-                    self.speedX = 0
-                    self.speedY = -10
-                elif self.bestDirection == "DOWN":
-                    self.speedX = 0
-                    self.speedY = 10
-                elif self.bestDirection == "LEFT":
-                    self.speedX = -10
-                    self.speedY = 0
-                elif self.bestDirection == "RIGHT":
-                    self.speedX = 10
-                    self.speedY = 0
-                else:
-                    #running = False
-                    self.gameOver = True
+                # 1 - LEFT
+                # 2 - UP
+                # 3 - RIGHT
+                # 4 - DOWN
+                
+                
+                self.updateQTable(choice)
+                
+                # if choice == 1:
+                #     self.speedX = -10
+                #     self.speedY = 0
+                # if choice == 2:
+                #     self.speedX = 0
+                #     self.speedY = -10
+                # if choice == 3:
+                #     self.speedX = 10
+                #     self.speedY = 0
+                # if choice == 4:
+                #     self.speedX = 0
+                #     self.speedY = 10
+                    
+                
                 
                 # Collect keyboard input
                 for event in pygame.event.get():
@@ -166,36 +172,146 @@ class SnakeGame:
                     if event.type == pygame.QUIT:
                         self.gameOver = True
                         
+                        
+                        
             else:
-                for event in pygame.event.get():
-                    if event.type == pygame.QUIT:
-                        self.running = False
-                    
-                    # Game reset
-                    if event.type == pygame.KEYDOWN:
-                        if event.key == pygame.K_SPACE:
-                            self.speedX = 10
-                            self.speedY = 0
-                            self.snakeX = self.screenWidth / 4 + 50
-                            self.snakeY = self.screenHeight / 2
-                            self.snakeLen = 4
-                            self.fruitX = 20
-                            self.fruitY = 20
-                            self.gameOver = False
+                self.reset()
                             
                         
                 # Rendering on this needs to be centered, kind of out of whack
-                self.screen.fill((0, 0, 0))
-                pygame.display.set_caption("GAME OVER")
-                font = pygame.font.Font(None, 36)
-                text = font.render("Score: " + str(self.snakeLen-1), True, (255, 255, 255))
-                self.screen.blit(text, (self.screenWidth / 2, self.screenHeight / 2))
-                pygame.display.flip()
-                    
+                # self.screen.fill((0, 0, 0))
+                # pygame.display.set_caption("GAME OVER")
+                # font = pygame.font.Font(None, 36)
+                # text = font.render("Score: " + str(self.snakeLen-1), True, (255, 255, 255))
+                # self.screen.blit(text, (self.screenWidth / 2, self.screenHeight / 2))
+                # pygame.display.flip()
+                
+                
             
-        pygame.quit()
+    def reset(self):
+        self.speedX = 10
+        self.speedY = 0
+        self.snakeX = self.screenWidth / 4 + 50
+        self.snakeY = self.screenHeight / 2
+        self.snakeLen = 4
+        self.fruitX = 20
+        self.fruitY = 20
+        self.gameOver = False
+        self.gameCount += 1
+            
+    
+    def getState(self):
+        xDistance = self.snakeX - self.fruitX
+        yDistance = self.snakeY - self.fruitY
+        relativeX = 0
+        relativeY = 0
+        
+        # 1 - Fruit is left of snake
+        # 2 - Fruit is right snake
+        # 3 - Fruit is below of snake
+        # 4 - Fruit is above snake
+        # 0 - Fruit is level with snake
+        
+        if self.fruitX < self.snakeX:
+            relativeX = 1
+        if self.fruitX > self.snakeX:
+            relativeX = 2
+        if self.fruitX == self.snakeX:
+            relativeX = 0
+            
+        if self.fruitY < self.snakeY:
+            relativeY = 3
+        if self.fruitY > self.snakeY:
+            relativeY = 4
+        if self.fruitY == self.snakeY:
+            relativeY = 0
+        
+        # Add more in here to describe walls and immediate moves
+        return (xDistance, yDistance, relativeX, relativeY)
+        
+        
         
 
+    def getAction(self):
+        choices = [1,2,3,4]
+        epsilon = .1
+        actionChoice = 0
+        
+        state = self.getState()
+        
+        newExploreValue = random.uniform(0,1)
+        
+        if self.gameCount < 200 and (newExploreValue < epsilon or state not in self.QTable):
+            actionChoice = random.choice(choices)
+        else:
+            # Q table: (state, action) -> value
+            actVals = self.QTable[state]
+            print(actVals)
+            
+            # Fix this
+            maxVal = max(actVals, key=lambda x: x[1])
+            actionChoice = maxVal[0]
+            
+        self.history.append((state, actionChoice))
+        
+        return actionChoice
+        
+        
+        
+    def updateQTable(self, choice):
+        curState = self.getState()
+        prevState = self.history[-1]
+        reward = 0        
+        
+        # State
+        # Xdist, Ydist, relX, relY
+        
+        # Fruit gets closer
+        if curState[0] < prevState[0][0]:
+            reward += 1
+        if curState[1] < prevState[0][1]:
+            reward += 1
+            
+        # Fruit gets farther away
+        if curState[0] > prevState[0][0]:
+            reward -= 1
+        if curState[1] > prevState[0][1]:
+            reward -= 1
+            
+
+            
+        # Fruit attained
+        if curState[0] == self.fruitX and curState[1] == self.fruitY:
+            reward += 20
+            
+        # Death by wall
+        if curState[0] < 0 or curState[0] > self.screenWidth:
+            reward -= 50
+        if curState[1] < 0 or curState[1] > self.screenHeight:
+            reward -= 50
+            
+        # Death by body
+        for block in self.snakeBody:
+            if block[0] == curState[0] and block[1] == curState[1]:
+                reward -= 50
+        
+        # Bellman Equation
+        if curState not in self.QTable:
+            self.QTable[curState] = []
+        #self.QTable[curState].append((choice, reward))
+        
+        # Not working
+        #self.QTable[curState][prevState[1]] = .999 * self.QTable[curState][prevState[1]] + 0.001 * reward
+        
+        
+        #QTable needs to look like this: fix in lookup in choose action function too
+        
+        #    STATE   |   (action LEFT, value)    |   (action UP, value)   |   (action RIGHT, value)   |   (action DOWN, value)
+        
+            
+        
+            
+            
 game = SnakeGame()
 game.play()
 
