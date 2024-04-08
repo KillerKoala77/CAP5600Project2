@@ -198,6 +198,7 @@ class SnakeGame:
         self.fruitY = 20
         self.gameOver = False
         self.gameCount += 1
+        self.history = []
             
     
     def getState(self):
@@ -225,9 +226,20 @@ class SnakeGame:
             relativeY = 4
         if self.fruitY == self.snakeY:
             relativeY = 0
+            
+        direction = 0
+            
+        if self.speedX == -10:
+            direction = 1
+        if self.speedY == 10:
+            direction = 2
+        if self.speedX == 10:
+            direction = 3
+        if self.speedY == -10:
+            direction = 4
         
         # Add more in here to describe walls and immediate moves
-        return (xDistance, yDistance, relativeX, relativeY)
+        return (xDistance, yDistance, relativeX, relativeY, direction)
         
         
         
@@ -241,7 +253,8 @@ class SnakeGame:
         
         newExploreValue = random.uniform(0,1)
         
-        if self.gameCount < 200 and (newExploreValue < epsilon or state not in self.QTable):
+        # Restrict epsilon usage later on.... removing now to accelereate testing
+        if (newExploreValue < epsilon or state not in self.QTable):
             actionChoice = random.choice(choices)
         else:
             # Q table: (state, action) -> value
@@ -263,26 +276,32 @@ class SnakeGame:
         
     def updateQTable(self, choice):
         curState = self.getState()
-        prevState = self.history[-1]
-        prevAction = prevState[1]
+        prevState = self.history[-1][0]
+        prevAction = self.history[-1][1]
         reward = 0        
         
         # State
         # Xdist, Ydist, relX, relY
         
+        # Aligns horizontally
+        # if prevState[2] != 0 and curState[2] == 0:
+        #     reward += 1
+            
+        # # Aligns vertically
+        # if prevState[3] != 0 and curState[3] == 0:
+        #     reward += 1
+        
         # Fruit gets closer
-        if curState[0] < prevState[0][0]:
+        if curState[0] < prevState[0]:
             reward += 1
-        if curState[1] < prevState[0][1]:
+        if curState[1] < prevState[1]:
             reward += 1
             
         # Fruit gets farther away
-        if curState[0] > prevState[0][0]:
+        if curState[0] > prevState[0]:
             reward -= 1
-        if curState[1] > prevState[0][1]:
+        if curState[1] > prevState[1]:
             reward -= 1
-            
-
             
         # Fruit attained
         if self.snakeX == self.fruitX and self.snakeY == self.fruitY:
@@ -294,7 +313,7 @@ class SnakeGame:
         if self.snakeY < 0 or self.snakeY > self.screenHeight:
             reward -= 50
             
-        # Death by body
+        # # Death by body
         for block in self.snakeBody:
             if block[0] == self.snakeX and block[1] == self.snakeY:
                 reward -= 50
@@ -304,8 +323,11 @@ class SnakeGame:
             self.QTable[curState] = {1 : 0, 2 : 0, 3 : 0, 4 : 0}
         #self.QTable[curState].append((choice, reward))
         
+        alpha = 0.4
+        gamma = 0.2
+        
         # Not working
-        self.QTable[curState][prevAction] = .999 * self.QTable[curState][prevAction] + 0.001 * float(reward)
+        self.QTable[curState][prevAction] = (1 - alpha) * self.QTable[curState][prevAction] + alpha * (float(reward))
         
         
         #QTable needs to look like this: fix in lookup in choose action function too
