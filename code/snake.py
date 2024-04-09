@@ -202,31 +202,7 @@ class SnakeGame:
             
     
     def getState(self):
-        xDistance = self.snakeX - self.fruitX
-        yDistance = self.snakeY - self.fruitY
-        relativeX = 0
-        relativeY = 0
-        
-        # 1 - Fruit is left of snake
-        # 2 - Fruit is right snake
-        # 3 - Fruit is below of snake
-        # 4 - Fruit is above snake
-        # 0 - Fruit is level with snake
-        
-        if self.fruitX < self.snakeX:
-            relativeX = 1
-        if self.fruitX > self.snakeX:
-            relativeX = 2
-        if self.fruitX == self.snakeX:
-            relativeX = 0
-            
-        if self.fruitY < self.snakeY:
-            relativeY = 3
-        if self.fruitY > self.snakeY:
-            relativeY = 4
-        if self.fruitY == self.snakeY:
-            relativeY = 0
-            
+
         direction = 0
             
         if self.speedX == -10:
@@ -239,7 +215,7 @@ class SnakeGame:
             direction = 4
         
         # Add more in here to describe walls and immediate moves
-        return (xDistance, yDistance, relativeX, relativeY, direction)
+        return (self.snakeX, self.snakeY, self.fruitX, self.fruitY, direction)
         
         
         
@@ -264,7 +240,8 @@ class SnakeGame:
             #self.QTable[curState] = {1 : 0, 2 : 0, 3 : 0, 4 : 0}
             
             actionVals = self.QTable[state]
-            actionChoice = max(actionVals, key=actionVals.get)
+            maxVal = max(actionVals, key=actionVals.get)
+            actionChoice = maxVal
 
             
             
@@ -275,66 +252,89 @@ class SnakeGame:
         
         
     def updateQTable(self, choice):
+        
+        # check for first round when there is no previous state?
+        
         curState = self.getState()
         prevState = self.history[-1][0]
         prevAction = self.history[-1][1]
-        reward = 0        
         
-        # State
-        # Xdist, Ydist, relX, relY
+        snakeDead = False
         
-        # Aligns horizontally
-        # if prevState[2] != 0 and curState[2] == 0:
-        #     reward += 1
-            
-        # # Aligns vertically
-        # if prevState[3] != 0 and curState[3] == 0:
-        #     reward += 1
         
-        # Fruit gets closer
-        if curState[0] < prevState[0]:
-            reward += 1
-        if curState[1] < prevState[1]:
-            reward += 1
-            
-        # Fruit gets farther away
-        if curState[0] > prevState[0]:
-            reward -= 1
-        if curState[1] > prevState[1]:
-            reward -= 1
-            
-        # Fruit attained
-        if self.snakeX == self.fruitX and self.snakeY == self.fruitY:
-            reward += 50
-            
-        # Death by wall
+        # if dead
         if self.snakeX < 0 or self.snakeX > self.screenWidth:
-            reward -= 50
+            snakeDead = True
         if self.snakeY < 0 or self.snakeY > self.screenHeight:
-            reward -= 50
-            
-        # # Death by body
+            snakeDead = True
+        
+        
         for block in self.snakeBody:
             if block[0] == self.snakeX and block[1] == self.snakeY:
+                snakeDead = True
+                
+                
+        # Reverse history
+        history = self.history[::-1]
+        
+        lr = 0.4
+        reward = 0
+        discount = 0.2
+        
+        for i in range(len(history) - 1):           
+                
+        # snake is dead, update table
+            if snakeDead:
                 reward -= 50
+                
+                state = history[i][0]
+                action = history[i][1]
+                
+                if state not in self.QTable:
+                    self.QTable[state] = {1 : 0.0, 2 : 0.0, 3 : 0.0, 4 : 0.0}
+                    
+                self.QTable[state][action] = (1 - lr) * self.QTable[state][action] + lr * reward
+    
+            else:
+                curState = history[i][0]
+                
+                prevState = history[i+1][0]
+                prevAction = history[i+1][1]
+                
+                prevSnakeX = prevState[0]
+                prevSnakeY = prevState[1]
+                
+                prevFruitX = prevState[2]
+                prevFruitY = prevState[3]
+                
+                curSnakeX = curState[0]
+                curSnakeY = curState[1]
+                curFruitX = curState[2]
+                curFruitY = curState[3]
+                
+                prevManDist = abs(prevSnakeX - prevFruitX) + abs(prevSnakeY - prevFruitY)
+                curManDist  = abs(curSnakeX - curFruitX) + abs(curSnakeY - curFruitY)
+                
+                if curManDist < prevManDist:
+                    reward += 10
+                    
+                if curManDist > prevManDist:
+                    reward -= 10
+                    
+                if curSnakeX == prevFruitX and curSnakeY == prevFruitY:
+                    reward += 30
+                
+                
+                  
+                if curState not in self.QTable:
+                    self.QTable[curState] = {1 : 0.0, 2 : 0.0, 3 : 0.0, 4 : 0.0}
+                    
+                if prevState not in self.QTable:
+                    self.QTable[prevState] = {1 : 0.0, 2 : 0.0, 3 : 0.0, 4 : 0.0}
+                
+                    
+                self.QTable[prevState][prevAction] = (1 - lr) * self.QTable[prevState][prevAction] + lr * (reward + discount * max(self.QTable[curState].values()))
         
-        # Bellman Equation
-        if curState not in self.QTable:
-            self.QTable[curState] = {1 : 0, 2 : 0, 3 : 0, 4 : 0}
-        #self.QTable[curState].append((choice, reward))
-        
-        alpha = 0.4
-        gamma = 0.2
-        
-        # Not working
-        self.QTable[curState][prevAction] = (1 - alpha) * self.QTable[curState][prevAction] + alpha * (float(reward))
-        
-        
-        #QTable needs to look like this: fix in lookup in choose action function too
-        
-        #    STATE   |   (action LEFT, value)    |   (action UP, value)   |   (action RIGHT, value)   |   (action DOWN, value)
-        
-            
         
             
             
