@@ -103,7 +103,7 @@ def aStarSearch(fruit: Coordinate, head: Coordinate, body, boardSize: tuple):
             position = Coordinate(currentNode.position.x + nextMove[0], currentNode.position.y + nextMove[1])
 
             # Check if new position is valid
-            if position.x > boardSize[0] or position.x < 0 or position.y > boardSize[1] or position.y < 0:
+            if position.x >= boardSize[0] or position.x < 0 or position.y >= boardSize[1] or position.y < 0:
                 continue
 
             # Check if new position is part of snake body
