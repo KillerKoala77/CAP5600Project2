@@ -1,8 +1,6 @@
 import pygame
 import random
-import torch
-import torch.nn as nn
-import torch.optim as optim
+
 
 
 
@@ -15,6 +13,7 @@ class SnakeGame:
         # QTable needs to be initialized to all 0's
         self.QTable = {}
         self.history = []
+        self.fruitLogger = []
         self.gameCount = 0
         
         # Set window size
@@ -46,8 +45,8 @@ class SnakeGame:
         self.red = (250, 0, 0)
         
         # Default fruit condition
-        self.fruitX = 20 #round(random.randint(0, screenWidth) / 10) * 10
-        self.fruitY = 20 #round(random.randint(0, screenHeight) / 10) * 10
+        self.fruitX = 20
+        self.fruitY = 20
         
         
     def play(self):
@@ -59,7 +58,6 @@ class SnakeGame:
             if not self.gameOver:
                 
                 choice = self.getAction()
-                print("Choice: ", choice)
                 
                 if choice == 1:
                     self.speedX = -10
@@ -111,7 +109,9 @@ class SnakeGame:
                 if self.snakeX == self.fruitX and self.snakeY == self.fruitY:
                     self.snakeLen += 1
                     self.fruitX = round(random.randint(0, self.screenWidth - 10) / 10) * 10
-                    self.fruitY = round(random.randint(0, self.screenHeight - 10) / 10) * 10    
+                    self.fruitY = round(random.randint(0, self.screenHeight - 10) / 10) * 10 
+                    self.fruitX = 30
+                    self.fruitY = 200
                 
                 # Collision with wall
                 if self.snakeX < 0 or self.snakeX > self.screenWidth:
@@ -137,7 +137,7 @@ class SnakeGame:
                 # 4 - DOWN
                 
                 
-                self.updateQTable(choice)
+                self.updateQTable()
                 
                 # if choice == 1:
                 #     self.speedX = -10
@@ -199,31 +199,63 @@ class SnakeGame:
         self.gameOver = False
         self.gameCount += 1
         self.history = []
+        self.fruitLogger = []
             
     
     def getState(self):
-
-        direction = 0
+        
+        leftRight = 0
+        upDown = 0
+        danger = [0, 0, 0, 0]
+        
+        manDistX = abs(self.snakeX - self.fruitX)
+        manDistY = abs(self.snakeY - self.fruitY)
+        
+        if self.fruitX - self.snakeX > 0:
+            leftRight = 1
+        if self.fruitX - self.snakeX < 1:
+            leftRight = -1
+        if self.fruitY - self.snakeY > 0:
+            upDown = 1
+        if self.fruitY - self.snakeY < 0:
+            upDown = -1
+        
+        if self.snakeX - 10 == 0:
+            danger[0] = 1
+        if self.snakeX + 10 == self.screenWidth:
+            danger[1] = 1
+        if self.snakeY - 10 == 0:
+            danger[2] = 1
+        if self.snakeY + 10 == self.screenHeight:
+            danger[3] = 1
+        
             
-        if self.speedX == -10:
-            direction = 1
-        if self.speedY == 10:
-            direction = 2
-        if self.speedX == 10:
-            direction = 3
-        if self.speedY == -10:
-            direction = 4
+            
+        for block in self.snakeBody:
+            if block[0] == self.snakeX - 10:
+                danger[0] = 1
+            if block[0] == self.snakeX + 10:
+                danger[1] = 1
+            if block[1] - 10 == self.snakeY:
+                danger[2] = 1
+            if block[1] + 10 == self.snakeY:
+                danger[3] = 1
+        if 1 in danger:
+            print(danger)
+            
         
-        # Add more in here to describe walls and immediate moves
-        return (self.snakeX, self.snakeY, self.fruitX, self.fruitY, direction)
         
-        
+        return (manDistX, manDistY, leftRight, upDown, tuple(danger))
+
         
 
     def getAction(self):
         choices = [1,2,3,4]
-        epsilon = .1
+        epsilon = 0.1
         actionChoice = 0
+        
+        if self.gameCount > 200:
+            epsilon = 0
         
         state = self.getState()
         
@@ -234,8 +266,6 @@ class SnakeGame:
             actionChoice = random.choice(choices)
         else:
             # Q table: (state, action) -> value
-            actVals = self.QTable[state]
-            print(actVals)
             
             #self.QTable[curState] = {1 : 0, 2 : 0, 3 : 0, 4 : 0}
             
@@ -246,20 +276,23 @@ class SnakeGame:
             
             
         self.history.append((state, actionChoice))
+        self.fruitLogger.append((self.fruitX, self.fruitY))
         
         return actionChoice
         
         
         
-    def updateQTable(self, choice):
+    def updateQTable(self):
         
-        # check for first round when there is no previous state?
+        # check for how curState is being defined diff between these two...
         
-        curState = self.getState()
         prevState = self.history[-1][0]
         prevAction = self.history[-1][1]
         
+        curState = self.getState()
+        
         snakeDead = False
+
         
         
         # if dead
@@ -277,7 +310,7 @@ class SnakeGame:
         # Reverse history
         history = self.history[::-1]
         
-        lr = 0.4
+        lr = 0.80
         reward = 0
         discount = 0.2
         
@@ -285,45 +318,47 @@ class SnakeGame:
                 
         # snake is dead, update table
             if snakeDead:
-                reward -= 50
+                reward -= 500
                 
-                state = history[i][0]
-                action = history[i][1]
-                
-                if state not in self.QTable:
-                    self.QTable[state] = {1 : 0.0, 2 : 0.0, 3 : 0.0, 4 : 0.0}
+                if prevState not in self.QTable:
+                    self.QTable[prevState] = {1 : 0.0, 2 : 0.0, 3 : 0.0, 4 : 0.0}
                     
-                self.QTable[state][action] = (1 - lr) * self.QTable[state][action] + lr * reward
+                self.QTable[prevState][prevAction] = (1 - lr) * self.QTable[prevState][prevAction] + lr * reward
     
             else:
-                curState = history[i][0]
                 
+                curState = history[i][0]
                 prevState = history[i+1][0]
                 prevAction = history[i+1][1]
                 
-                prevSnakeX = prevState[0]
-                prevSnakeY = prevState[1]
+                # manX, manY, leftRight, upDown, danger
                 
-                prevFruitX = prevState[2]
-                prevFruitY = prevState[3]
+                prevManX = prevState[0]
+                prevManY = prevState[1]
                 
-                curSnakeX = curState[0]
-                curSnakeY = curState[1]
-                curFruitX = curState[2]
-                curFruitY = curState[3]
+                curManX = curState[0]
+                curManY = curState[1]
                 
-                prevManDist = abs(prevSnakeX - prevFruitX) + abs(prevSnakeY - prevFruitY)
-                curManDist  = abs(curSnakeX - curFruitX) + abs(curSnakeY - curFruitY)
+                fruitLog = self.fruitLogger[::-1]
                 
-                if curManDist < prevManDist:
+                prevFruitX = fruitLog[i+1][0]
+                prevFruitY = fruitLog[i+1][1]
+                
+                curFruitX = fruitLog[i][0]
+                curFruitY = fruitLog[i][1]      
+                
+                if curManX < prevManX:
                     reward += 10
-                    
-                if curManDist > prevManDist:
+                if curManX > prevManX:
+                    reward -= 10
+                if curManY < prevManY:
+                    reward += 10
+                if curManY > prevManY:
                     reward -= 10
                     
-                if curSnakeX == prevFruitX and curSnakeY == prevFruitY:
-                    reward += 30
-                
+                    
+                if curFruitX != prevFruitX and curFruitY != prevFruitY:
+                    reward += 20
                 
                   
                 if curState not in self.QTable:
@@ -333,7 +368,7 @@ class SnakeGame:
                     self.QTable[prevState] = {1 : 0.0, 2 : 0.0, 3 : 0.0, 4 : 0.0}
                 
                     
-                self.QTable[prevState][prevAction] = (1 - lr) * self.QTable[prevState][prevAction] + lr * (reward + discount * max(self.QTable[curState].values()))
+                self.QTable[prevState][prevAction] = (1 - lr) * self.QTable[prevState][prevAction] + lr * (reward + discount * max(self.QTable[curState], key=self.QTable[curState].get))
         
         
             
