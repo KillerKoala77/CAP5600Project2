@@ -110,8 +110,6 @@ class SnakeGame:
                     self.snakeLen += 1
                     self.fruitX = round(random.randint(0, self.screenWidth - 10) / 10) * 10
                     self.fruitY = round(random.randint(0, self.screenHeight - 10) / 10) * 10 
-                    self.fruitX = 30
-                    self.fruitY = 200
                 
                 # Collision with wall
                 if self.snakeX < 0 or self.snakeX > self.screenWidth:
@@ -262,12 +260,12 @@ class SnakeGame:
         newExploreValue = random.uniform(0,1)
         
         # Restrict epsilon usage later on.... removing now to accelereate testing
-        if (newExploreValue < epsilon or state not in self.QTable):
+        if (newExploreValue < epsilon):
             actionChoice = random.choice(choices)
         else:
-            # Q table: (state, action) -> value
             
-            #self.QTable[curState] = {1 : 0, 2 : 0, 3 : 0, 4 : 0}
+            if state not in self.QTable:
+                self.QTable[state] = {1 : 0, 2 : 0, 3 : 0, 4 : 0}
             
             actionVals = self.QTable[state]
             maxVal = max(actionVals, key=actionVals.get)
@@ -311,6 +309,7 @@ class SnakeGame:
         history = self.history[::-1]
         
         lr = 0.80
+        lr = 0.001
         reward = 0
         discount = 0.2
         
