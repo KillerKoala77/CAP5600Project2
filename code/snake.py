@@ -176,7 +176,7 @@ def main():
         s = ((x * 10) + 10)
         snakeBody.append(Coordinate(t + s, snakeY))
     # Snake speed and populate clock
-    speed = 30
+    speed = 10
     clock = pygame.time.Clock()
     
     # RGB values
@@ -232,9 +232,9 @@ def main():
                 fruitPosition.y = round(random.randint(0, screenHeight - 10) / 10) * 10    
             
             # Collision with wall
-            if snakePosition.x < 0 or snakePosition.x > screenWidth:
+            if snakePosition.x < 0 or snakePosition.x >= screenWidth:
                 gameOver = True
-            if snakePosition.y < 0 or snakePosition.y > screenHeight:
+            if snakePosition.y < 0 or snakePosition.y >= screenHeight:
                 gameOver = True
                 
             # Collision with body
@@ -250,32 +250,36 @@ def main():
             # Iterate timer
             clock.tick(speed)
 
-            # If there is no defined path, calculate one
-            if len(path) == 0:
-                # AI
-                #bestDirection = gbfs(fruitX, fruitY, snakeX, snakeY, snakeBody)
+            humanPlay = False
 
-                result = aStarSearch(fruitPosition, snakePosition, snakeBody, (screenWidth, screenHeight))
-
-                
-                current = Node(result.parent, result.position)
-                
-                # Walk backwards through all parents to build a path
-                while current is not None:
-                    path.append(current.position)
-                    current = current.parent
-
+            if not humanPlay:
+            
+                # If there is no defined path, calculate one
                 if len(path) == 0:
-                    time.sleep(1)
+                    # AI
+                    #bestDirection = gbfs(fruitX, fruitY, snakeX, snakeY, snakeBody)
+
+                    result = aStarSearch(fruitPosition, snakePosition, snakeBody, (screenWidth, screenHeight))
+
                     
-                # Remove last position as that is equal to the current head
-                path.pop()
+                    current = Node(result.parent, result.position)
+                    
+                    # Walk backwards through all parents to build a path
+                    while current is not None:
+                        path.append(current.position)
+                        current = current.parent
+
+                    if len(path) == 0:
+                        time.sleep(1)
+                        
+                    # Remove last position as that is equal to the current head
+                    path.pop()
 
 
-            nextMove = path.pop()
+                nextMove = path.pop()
 
-            speedX = nextMove.x - snakePosition.x
-            speedY = nextMove.y - snakePosition.y
+                speedX = nextMove.x - snakePosition.x
+                speedY = nextMove.y - snakePosition.y
 
             # AI A*
             # from current head, check valid moves.
@@ -301,18 +305,22 @@ def main():
             # Collect keyboard input
             for event in pygame.event.get():
                 if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_LEFT:
+                    if event.key == pygame.K_LEFT and speedX != 10:
                         speedX = -10
                         speedY = 0
-                    if event.key == pygame.K_UP:
+                        break
+                    if event.key == pygame.K_UP and speedY != 10:
                         speedX = 0
                         speedY = -10
-                    if event.key == pygame.K_RIGHT:
+                        break
+                    if event.key == pygame.K_RIGHT and speedX != -10:
                         speedX = 10
                         speedY = 0
-                    if event.key == pygame.K_DOWN:
+                        break
+                    if event.key == pygame.K_DOWN and speedY != -10:
                         speedX = 0
                         speedY = 10
+                        break
                 if event.type == pygame.QUIT:
                     gameOver = True
                     
