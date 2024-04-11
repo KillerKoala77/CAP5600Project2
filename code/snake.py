@@ -15,6 +15,7 @@ class SnakeGame:
         self.history = []
         self.fruitLogger = []
         self.gameCount = 0
+        self.score = 0
         
         # Set window size
         self.screenWidth = 400
@@ -45,8 +46,8 @@ class SnakeGame:
         self.red = (250, 0, 0)
         
         # Default fruit condition
-        self.fruitX = 20
-        self.fruitY = 20
+        self.fruitX = round(random.randint(0, self.screenWidth - 10) / 10) * 10
+        self.fruitY = round(random.randint(0, self.screenHeight - 10) / 10) * 10 
         
         
     def play(self):
@@ -77,7 +78,7 @@ class SnakeGame:
                 
                 # Generate screen
                 self.screen.fill((50,50,50))
-                pygame.display.set_caption("Game: " + str(self.gameCount))
+                pygame.display.set_caption("Game: " + str(self.gameCount) + "\t" + str(self.score))
 
                 for x in range(int(self.screenHeight/10)):
                     pygame.draw.line(self.screen, (20,20,20), (0,x*10), (self.screenWidth,x*10))
@@ -108,8 +109,10 @@ class SnakeGame:
                 # Update fruit coordinates
                 if self.snakeX == self.fruitX and self.snakeY == self.fruitY:
                     self.snakeLen += 1
+                    self.score += 1
                     self.fruitX = round(random.randint(0, self.screenWidth - 10) / 10) * 10
                     self.fruitY = round(random.randint(0, self.screenHeight - 10) / 10) * 10 
+                    
                 
                 # Collision with wall
                 if self.snakeX < 0 or self.snakeX > self.screenWidth:
@@ -137,39 +140,10 @@ class SnakeGame:
                 
                 self.updateQTable()
                 
-                # if choice == 1:
-                #     self.speedX = -10
-                #     self.speedY = 0
-                # if choice == 2:
-                #     self.speedX = 0
-                #     self.speedY = -10
-                # if choice == 3:
-                #     self.speedX = 10
-                #     self.speedY = 0
-                # if choice == 4:
-                #     self.speedX = 0
-                #     self.speedY = 10
+
+                
+            
                     
-                
-                
-                # Collect keyboard input
-                for event in pygame.event.get():
-                    if event.type == pygame.KEYDOWN:
-                        if event.key == pygame.K_LEFT:
-                            self.speedX = -10
-                            self.speedY = 0
-                        if event.key == pygame.K_UP:
-                            self.speedX = 0
-                            self.speedY = -10
-                        if event.key == pygame.K_RIGHT:
-                            self.speedX = 10
-                            self.speedY = 0
-                        if event.key == pygame.K_DOWN:
-                            self.speedX = 0
-                            self.speedY = 10
-                    if event.type == pygame.QUIT:
-                        self.gameOver = True
-                        
                         
                         
             else:
@@ -192,12 +166,13 @@ class SnakeGame:
         self.snakeX = self.screenWidth / 4 + 50
         self.snakeY = self.screenHeight / 2
         self.snakeLen = 4
-        self.fruitX = 20
-        self.fruitY = 20
+        self.fruitX = round(random.randint(0, self.screenWidth - 10) / 10) * 10
+        self.fruitY = round(random.randint(0, self.screenHeight - 10) / 10) * 10 
         self.gameOver = False
         self.gameCount += 1
         self.history = []
         self.fruitLogger = []
+        self.score = 0
             
     
     def getState(self):
@@ -206,8 +181,6 @@ class SnakeGame:
         upDown = 0
         danger = [0, 0, 0, 0]
         
-        manDistX = abs(self.snakeX - self.fruitX)
-        manDistY = abs(self.snakeY - self.fruitY)
         
         if self.fruitX - self.snakeX > 0:
             leftRight = 1
@@ -238,21 +211,19 @@ class SnakeGame:
                 danger[2] = 1
             if block[1] + 10 == self.snakeY:
                 danger[3] = 1
-        if 1 in danger:
-            print(danger)
             
         
         
-        return (manDistX, manDistY, leftRight, upDown, tuple(danger))
+        return (leftRight, upDown, tuple(danger))
 
         
 
     def getAction(self):
         choices = [1,2,3,4]
-        epsilon = 0.1
+        epsilon = 0.01
         actionChoice = 0
         
-        if self.gameCount > 200:
+        if self.gameCount > 600:
             epsilon = 0
         
         state = self.getState()
@@ -261,7 +232,17 @@ class SnakeGame:
         
         # Restrict epsilon usage later on.... removing now to accelereate testing
         if (newExploreValue < epsilon):
+            if self.speedX == -10:
+                choices.remove(3)
+            if self.speedX == 10:
+                choices.remove(1)
+            if self.speedY == -10:
+                choices.remove(2)
+            if self.speedY == 10:
+                choices.remove(4)
+            
             actionChoice = random.choice(choices)
+            
         else:
             
             if state not in self.QTable:
@@ -270,10 +251,13 @@ class SnakeGame:
             actionVals = self.QTable[state]
             maxVal = max(actionVals, key=actionVals.get)
             actionChoice = maxVal
-
             
             
-        self.history.append((state, actionChoice))
+            
+        manDistX = abs(self.snakeX - self.fruitX)
+        manDistY = abs(self.snakeY - self.fruitY)
+            
+        self.history.append((state, actionChoice, manDistX, manDistY))
         self.fruitLogger.append((self.fruitX, self.fruitY))
         
         return actionChoice
@@ -296,20 +280,22 @@ class SnakeGame:
         # if dead
         if self.snakeX < 0 or self.snakeX > self.screenWidth:
             snakeDead = True
+            print("death by wall")
         if self.snakeY < 0 or self.snakeY > self.screenHeight:
             snakeDead = True
+            print("death by wall")
         
         
         for block in self.snakeBody:
             if block[0] == self.snakeX and block[1] == self.snakeY:
                 snakeDead = True
+                print("death by tail" + str(prevState[2]))
                 
                 
         # Reverse history
         history = self.history[::-1]
         
-        lr = 0.80
-        lr = 0.001
+        lr = 0.02
         reward = 0
         discount = 0.2
         
@@ -323,6 +309,8 @@ class SnakeGame:
                     self.QTable[prevState] = {1 : 0.0, 2 : 0.0, 3 : 0.0, 4 : 0.0}
                     
                 self.QTable[prevState][prevAction] = (1 - lr) * self.QTable[prevState][prevAction] + lr * reward
+
+                    
     
             else:
                 
@@ -332,11 +320,15 @@ class SnakeGame:
                 
                 # manX, manY, leftRight, upDown, danger
                 
-                prevManX = prevState[0]
-                prevManY = prevState[1]
+                #prevManX = prevState[0]
+                #prevManY = prevState[1]
+                prevManX = history[i+1][2]
+                prevManY = history[i+1][3]
                 
-                curManX = curState[0]
-                curManY = curState[1]
+                #curManX = curState[0]
+                #curManY = curState[1]
+                curManX = history[i][2]
+                curManY = history[i][3]
                 
                 fruitLog = self.fruitLogger[::-1]
                 
@@ -357,7 +349,7 @@ class SnakeGame:
                     
                     
                 if curFruitX != prevFruitX and curFruitY != prevFruitY:
-                    reward += 20
+                    reward += 30
                 
                   
                 if curState not in self.QTable:
