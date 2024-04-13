@@ -73,7 +73,12 @@ class SnakeGame:
                     self.speedX = 0
                     self.speedY = 10
                 
+                self.snakeBody.append((self.snakeX, self.snakeY))
                 
+                self.snakeX += self.speedX
+                self.snakeY += self.speedY
+                
+                #self.snakeBody.append((self.snakeX, self.snakeY))
                 
                 
                 # Generate screen
@@ -90,7 +95,7 @@ class SnakeGame:
                 pygame.draw.rect(self.screen, self.green, [self.snakeX, self.snakeY, 10, 10])
                 
                 # Record head locations
-                self.snakeBody.append((self.snakeX, self.snakeY))
+                #self.snakeBody.append((self.snakeX, self.snakeY))
                 
                 # Draw snake tail
                 if len(self.snakeBody) > self.snakeLen:
@@ -103,8 +108,8 @@ class SnakeGame:
                 pygame.draw.rect(self.screen, self.red, [self.fruitX, self.fruitY, 10, 10])
                 
                 # Update snake head x and y coordinates
-                self.snakeX += self.speedX
-                self.snakeY += self.speedY
+                #self.snakeX += self.speedX
+                #self.snakeY += self.speedY
                 
                 # Update fruit coordinates
                 if self.snakeX == self.fruitX and self.snakeY == self.fruitY:
@@ -172,6 +177,7 @@ class SnakeGame:
         self.gameCount += 1
         self.history = []
         self.fruitLogger = []
+        #print(self.score)
         self.score = 0
             
     
@@ -194,9 +200,9 @@ class SnakeGame:
         if self.snakeX - 10 == 0:
             danger[0] = 1
         if self.snakeX + 10 == self.screenWidth:
-            danger[1] = 1
-        if self.snakeY - 10 == 0:
             danger[2] = 1
+        if self.snakeY - 10 == 0:
+            danger[1] = 1
         if self.snakeY + 10 == self.screenHeight:
             danger[3] = 1
         
@@ -206,14 +212,26 @@ class SnakeGame:
             if block[0] == self.snakeX - 10:
                 danger[0] = 1
             if block[0] == self.snakeX + 10:
-                danger[1] = 1
-            if block[1] - 10 == self.snakeY:
                 danger[2] = 1
-            if block[1] + 10 == self.snakeY:
-                danger[3] = 1
+            if block[1] == self.snakeY - 10:
+                danger[1] = 1
+            if block[1] == self.snakeY + 10:
+                danger[1] = 3
+                
+        direction = 0
+        
+        if self.speedX == -10:
+            direction = 1
+        if self.speedY == 10:
+            direction = 2
+        if self.speedX == 10:
+            direction = 3
+        if self.speedY == -10:
+            direction = 4
             
         
-        
+            
+        print(danger)
         return (leftRight, upDown, tuple(danger))
 
         
@@ -223,7 +241,7 @@ class SnakeGame:
         epsilon = 0.01
         actionChoice = 0
         
-        if self.gameCount > 600:
+        if self.gameCount > 100:
             epsilon = 0
         
         state = self.getState()
@@ -242,6 +260,7 @@ class SnakeGame:
                 choices.remove(4)
             
             actionChoice = random.choice(choices)
+            #print("Random Action: " + str(actionChoice))
             
         else:
             
@@ -260,6 +279,8 @@ class SnakeGame:
         self.history.append((state, actionChoice, manDistX, manDistY))
         self.fruitLogger.append((self.fruitX, self.fruitY))
         
+        #print("Table Action: " + str(actionChoice))
+        #return 4
         return actionChoice
         
         
@@ -274,30 +295,32 @@ class SnakeGame:
         curState = self.getState()
         
         snakeDead = False
+        
 
         
         
         # if dead
         if self.snakeX < 0 or self.snakeX > self.screenWidth:
             snakeDead = True
-            print("death by wall")
+            #print("death by wall")
         if self.snakeY < 0 or self.snakeY > self.screenHeight:
             snakeDead = True
-            print("death by wall")
+            #print("death by wall")
         
         
         for block in self.snakeBody:
             if block[0] == self.snakeX and block[1] == self.snakeY:
                 snakeDead = True
-                print("death by tail" + str(prevState[2]))
+                #print("death by tail" + str(prevState[2]))
                 
                 
         # Reverse history
         history = self.history[::-1]
         
-        lr = 0.02
+        #lr = 0.02
+        lr = 0.9
         reward = 0
-        discount = 0.2
+        discount = 0.8
         
         for i in range(len(history) - 1):           
                 
@@ -307,6 +330,8 @@ class SnakeGame:
                 
                 if prevState not in self.QTable:
                     self.QTable[prevState] = {1 : 0.0, 2 : 0.0, 3 : 0.0, 4 : 0.0}
+                    
+            
                     
                 self.QTable[prevState][prevAction] = (1 - lr) * self.QTable[prevState][prevAction] + lr * reward
 
@@ -330,13 +355,8 @@ class SnakeGame:
                 curManX = history[i][2]
                 curManY = history[i][3]
                 
-                fruitLog = self.fruitLogger[::-1]
-                
-                prevFruitX = fruitLog[i+1][0]
-                prevFruitY = fruitLog[i+1][1]
-                
-                curFruitX = fruitLog[i][0]
-                curFruitY = fruitLog[i][1]      
+
+
                 
                 if curManX < prevManX:
                     reward += 10
@@ -348,9 +368,24 @@ class SnakeGame:
                     reward -= 10
                     
                     
-                if curFruitX != prevFruitX and curFruitY != prevFruitY:
-                    reward += 30
+                upDown = curState[0]
+                leftRight = curState[1]
                 
+                prevUpDown = prevState[0]
+                prevLeftRight = prevState[1]
+                
+                if prevUpDown != 0 and upDown == 0:
+                    reward += 20
+                if prevLeftRight != 0 and leftRight == 0:
+                    reward += 20
+                
+                if upDown == 0 and leftRight == 0:
+                    reward += 40
+                    
+                if prevUpDown == 0 and upDown != 0:
+                    reward -= 20
+                if prevLeftRight == 0 and leftRight != 0:
+                    reward -= 20
                   
                 if curState not in self.QTable:
                     self.QTable[curState] = {1 : 0.0, 2 : 0.0, 3 : 0.0, 4 : 0.0}
