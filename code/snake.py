@@ -1,10 +1,6 @@
 import pygame
 import random
 
-
-
-
-    
 class SnakeGame:
     def __init__(self):
     
@@ -57,19 +53,20 @@ class SnakeGame:
             
             
             if not self.gameOver:
-                
+
+                # Get next action from current state and Q Table
                 choice = self.getAction()
                 
-                if choice == 1:
+                if choice == 1: # Left
                     self.speedX = -10
                     self.speedY = 0
-                if choice == 2:
+                if choice == 2: # Up
                     self.speedX = 0
                     self.speedY = -10
-                if choice == 3:
+                if choice == 3: # Right
                     self.speedX = 10
                     self.speedY = 0
-                if choice == 4:
+                if choice == 4: # Down
                     self.speedX = 0
                     self.speedY = 10
                 
@@ -96,11 +93,12 @@ class SnakeGame:
                 
                 # Record head locations
                 #self.snakeBody.append((self.snakeX, self.snakeY))
-                
-                # Draw snake tail
+
+                # remove last tail location, if a fruit wasn't eaten
                 if len(self.snakeBody) > self.snakeLen:
                     del self.snakeBody[:-self.snakeLen]
                 
+                # Draw snake tail
                 for block in self.snakeBody:
                     pygame.draw.rect(self.screen, self.green, [block[0], block[1], 10, 10])
                     
@@ -120,15 +118,18 @@ class SnakeGame:
                     
                 
                 # Collision with wall
-                if self.snakeX < 0 or self.snakeX > self.screenWidth:
+                if self.snakeX < 0 or self.snakeX > self.screenWidth - 10:
                     self.gameOver = True
-                if self.snakeY < 0 or self.snakeY > self.screenHeight:
+                if self.snakeY < 0 or self.snakeY > self.screenHeight - 10:
                     self.gameOver = True
-                    
-                # Collision with body
-                for block in self.snakeBody:
-                    if block[0] == self.snakeX and block[1] == self.snakeY:
-                        self.gameOver = True
+
+
+                if(self.snakeX, self.snakeY) in self.snakeBody:
+                    self.gameOver = True
+                # # Collision with body
+                # for block in self.snakeBody:
+                #     if block[0] == self.snakeX and block[1] == self.snakeY:
+                #         self.gameOver = True
                 
                 # Update display
                 pygame.display.flip()
@@ -146,7 +147,9 @@ class SnakeGame:
                 self.updateQTable()
                 
 
-                
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        self.running = False
             
                     
                         
@@ -183,51 +186,72 @@ class SnakeGame:
     
     def getState(self):
         
-        leftRight = 0
-        upDown = 0
-        danger = [0, 0, 0, 0]
+        leftRight = 0 # X
+        upDown = 0 # Y
+        danger = [0, 0, 0, 0] # L, U, R, D
         
+        # get relative fruit position
         
-        if self.fruitX - self.snakeX > 0:
-            leftRight = 1
-        if self.fruitX - self.snakeX < 1:
-            leftRight = -1
-        if self.fruitY - self.snakeY > 0:
-            upDown = 1
+        if self.fruitX - self.snakeX > 0: # If positive
+            leftRight = 1 # Fruit is right
+            
+        if self.fruitX - self.snakeX < 1: # If negative
+            leftRight = -1 # Fruit is left
+            
+        if self.fruitY - self.snakeY > 0: # If positive
+            upDown = 1 # Fruit is below
+            
         if self.fruitY - self.snakeY < 0:
-            upDown = -1
+            upDown = -1 # Fruit is above
+
+        # determine danger
         
-        if self.snakeX - 10 == 0:
+        if self.snakeX - 10 == 0: # Off screen left
             danger[0] = 1
-        if self.snakeX + 10 == self.screenWidth:
+            
+        if self.snakeX + 10 == self.screenWidth - 10: # Off screen right
             danger[2] = 1
-        if self.snakeY - 10 == 0:
+            
+        if self.snakeY - 10 == 0: # Off screen top
             danger[1] = 1
-        if self.snakeY + 10 == self.screenHeight:
+            
+        if self.snakeY + 10 == self.screenHeight - 10: # Off screen bottom
             danger[3] = 1
-        
+
+        # Check each block in each direction against snakeBody
+
+        if (self.snakeX - 10, self.snakeY) in self.snakeBody: # Left
+            danger[0] = 1
+
+        if (self.snakeX + 10, self.snakeY) in self.snakeBody: # Right
+            danger[2] = 1
+
+        if (self.snakeX, self.snakeY - 10) in self.snakeBody: # Up
+            danger[1] = 1
+
+        if (self.snakeX, self.snakeY - 10) in self.snakeBody: # Down
+            danger[3] = 1
             
-            
-        for block in self.snakeBody:
-            if block[0] == self.snakeX - 10:
-                danger[0] = 1
-            if block[0] == self.snakeX + 10:
-                danger[2] = 1
-            if block[1] == self.snakeY - 10:
-                danger[1] = 1
-            if block[1] == self.snakeY + 10:
-                danger[1] = 3
+        # for block in self.snakeBody:
+        #     if block[0] == self.snakeX - 10:
+        #         danger[0] = 1
+        #     if block[0] == self.snakeX + 10:
+        #         danger[2] = 1
+        #     if block[1] == self.snakeY - 10:
+        #         danger[1] = 1
+        #     if block[1] == self.snakeY + 10:
+        #         danger[1] = 3
                 
-        direction = 0
+        # direction = 0
         
-        if self.speedX == -10:
-            direction = 1
-        if self.speedY == 10:
-            direction = 2
-        if self.speedX == 10:
-            direction = 3
-        if self.speedY == -10:
-            direction = 4
+        # if self.speedX == -10:
+        #     direction = 1
+        # if self.speedY == 10:
+        #     direction = 2
+        # if self.speedX == 10:
+        #     direction = 3
+        # if self.speedY == -10:
+        #     direction = 4
             
         
             
@@ -237,8 +261,8 @@ class SnakeGame:
         
 
     def getAction(self):
-        choices = [1,2,3,4]
-        epsilon = 0.01
+        choices = [1,2,3,4] # R,U,L,D
+        epsilon = 0.3
         actionChoice = 0
         
         if self.gameCount > 100:
@@ -249,15 +273,20 @@ class SnakeGame:
         newExploreValue = random.uniform(0,1)
         
         # Restrict epsilon usage later on.... removing now to accelereate testing
+
+        # Remove choice that allows snake to immediately double back on itself and die
         if (newExploreValue < epsilon):
-            if self.speedX == -10:
-                choices.remove(3)
-            if self.speedX == 10:
-                choices.remove(1)
-            if self.speedY == -10:
-                choices.remove(2)
-            if self.speedY == 10:
-                choices.remove(4)
+            if self.speedX == -10: # Moving left
+                choices.remove(3) # Remove right option
+                
+            if self.speedX == 10: # Moving right
+                choices.remove(1) # Remove left option
+                
+            if self.speedY == -10: # Moving up
+                choices.remove(2) # Remove down option
+                
+            if self.speedY == 10: # Moving down
+                choices.remove(4) # Remove up option
             
             actionChoice = random.choice(choices)
             #print("Random Action: " + str(actionChoice))
@@ -271,7 +300,7 @@ class SnakeGame:
             maxVal = max(actionVals, key=actionVals.get)
             actionChoice = maxVal
             
-            
+        # should manhatten distance take into account the move that was just decided upon?
             
         manDistX = abs(self.snakeX - self.fruitX)
         manDistY = abs(self.snakeY - self.fruitY)
@@ -300,18 +329,21 @@ class SnakeGame:
         
         
         # if dead
-        if self.snakeX < 0 or self.snakeX > self.screenWidth:
+        if self.snakeX < 0 or self.snakeX > self.screenWidth - 10:
             snakeDead = True
             #print("death by wall")
-        if self.snakeY < 0 or self.snakeY > self.screenHeight:
+        if self.snakeY < 0 or self.snakeY > self.screenHeight - 10:
             snakeDead = True
             #print("death by wall")
         
+
+        if(self.snakeX, self.snakeY) in self.snakeBody:
+            snakeDead = True
         
-        for block in self.snakeBody:
-            if block[0] == self.snakeX and block[1] == self.snakeY:
-                snakeDead = True
-                #print("death by tail" + str(prevState[2]))
+        # for block in self.snakeBody:
+        #     if block[0] == self.snakeX and block[1] == self.snakeY:
+        #         snakeDead = True
+        #         #print("death by tail" + str(prevState[2]))
                 
                 
         # Reverse history
@@ -349,23 +381,29 @@ class SnakeGame:
                 #prevManY = prevState[1]
                 prevManX = history[i+1][2]
                 prevManY = history[i+1][3]
+
+                prevMan = prevManX + prevManY
                 
                 #curManX = curState[0]
                 #curManY = curState[1]
                 curManX = history[i][2]
                 curManY = history[i][3]
                 
-
+                curMan = curManX + curManY
 
                 
-                if curManX < prevManX:
+                # if curManX < prevManX:
+                #     reward += 10
+                # if curManX > prevManX:
+                #     reward -= 10
+                # if curManY < prevManY:
+                #     reward += 10
+                # if curManY > prevManY:
+                #     reward -= 10
+
+                # manhatten distance is closer, yay
+                if curMan > prevMan:
                     reward += 10
-                if curManX > prevManX:
-                    reward -= 10
-                if curManY < prevManY:
-                    reward += 10
-                if curManY > prevManY:
-                    reward -= 10
                     
                     
                 upDown = curState[0]
