@@ -35,7 +35,8 @@ class SnakeGame:
         for x in range(4):
             self.snakeBody.append((self.screenWidth / 4 + ((x * 10) + 10), self.snakeY))
         # Snake speed and populate clock
-        self.speed = 30
+        #self.speed = 30
+        self.speed = 1000
         self.clock = pygame.time.Clock()
         
         # RGB values
@@ -186,7 +187,7 @@ class SnakeGame:
         self.history = []
         self.moveCount = 0
         self.fruitLogger = []
-        #print(self.score)
+        print(self.score)
         self.score = 0
             
     
@@ -261,7 +262,7 @@ class SnakeGame:
             
         
             
-        print(danger)
+        #print(danger)
         return (leftRight, upDown, tuple(danger))
 
         
@@ -360,6 +361,14 @@ class SnakeGame:
         lr = 0.7
         reward = 0
         discount = 0.5
+        
+        if self.gameCount > 200:
+            lr = 0.4
+            discount = 0.2
+            
+        if self.gameCount > 600:
+            lr = 0.001
+            discount = 0.001
         
         for i in range(len(history) - 1):           
                 
