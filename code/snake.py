@@ -1,8 +1,12 @@
 import pygame
 import random
+import json
 
 class SnakeGame:
     def __init__(self):
+        
+        self.learning = False
+                
     
         pygame.init()
         
@@ -46,6 +50,20 @@ class SnakeGame:
         # Default fruit condition
         self.fruitX = round(random.randint(0, self.screenWidth - 10) / 10) * 10
         self.fruitY = round(random.randint(0, self.screenHeight - 10) / 10) * 10 
+        
+        if not self.learning:
+            self.speed = 30
+            filename = "QTable.json"
+            with open(filename, 'r') as file:
+                rawData = json.load(file)
+                
+            for stateParam in rawData:
+                self.QTable[stateParam] = {1 : 0.0, 2 : 0.0, 3 : 0.0, 4 : 0.0}
+                self.QTable[stateParam][1] = float(rawData[stateParam]['1'])
+                self.QTable[stateParam][2] = float(rawData[stateParam]['2'])
+                self.QTable[stateParam][3] = float(rawData[stateParam]['3'])
+                self.QTable[stateParam][4] = float(rawData[stateParam]['4'])
+                
         
         
     def play(self):
@@ -145,7 +163,6 @@ class SnakeGame:
                 # 3 - RIGHT
                 # 4 - DOWN
                 
-                
                 self.updateQTable()
                 
 
@@ -156,6 +173,13 @@ class SnakeGame:
                         if event.key == pygame.K_k:
                             self.gameOver = True
                             break
+                        if event.key == pygame.K_s:
+                            filename = "QTable.json"
+                            print(self.QTable)
+                            with open(filename, 'w') as file:
+                                json.dump(self.QTable, file)
+                                self.gameOver = True
+                                self.running = False
             
                     
                         
@@ -268,11 +292,14 @@ class SnakeGame:
         
 
     def getAction(self):
+        
         choices = [1,2,3,4] # R,U,L,D
         epsilon = 0.1
         actionChoice = 0
         
         if self.gameCount > 100:
+            epsilon = 0
+        if not self.learning:
             epsilon = 0
         
         state = self.getState()
@@ -300,10 +327,10 @@ class SnakeGame:
             
         else:
             
-            if state not in self.QTable:
-                self.QTable[state] = {1 : 0, 2 : 0, 3 : 0, 4 : 0}
+            if str(state) not in self.QTable:
+                self.QTable[str(state)] = {1 : 0, 2 : 0, 3 : 0, 4 : 0}
             
-            actionVals = self.QTable[state]
+            actionVals = self.QTable[str(state)]
             maxVal = max(actionVals, key=actionVals.get)
             actionChoice = maxVal
             
@@ -319,6 +346,9 @@ class SnakeGame:
         #print("Table Action: " + str(actionChoice))
         #return 4
         return actionChoice
+        
+
+            
         
         
         
@@ -369,6 +399,10 @@ class SnakeGame:
         if self.gameCount > 600:
             lr = 0.001
             discount = 0.001
+            
+        if not self.learning:
+            lr = 0.001
+            discount = 0.001
         
         for i in range(len(history) - 1):           
                 
@@ -376,12 +410,12 @@ class SnakeGame:
             if snakeDead:
                 reward -= 10
                 
-                if prevState not in self.QTable:
-                    self.QTable[prevState] = {1 : 0.0, 2 : 0.0, 3 : 0.0, 4 : 0.0}
+                if str(prevState) not in self.QTable:
+                    self.QTable[str(prevState)] = {1 : 0.0, 2 : 0.0, 3 : 0.0, 4 : 0.0}
                     
             
                     
-                self.QTable[prevState][prevAction] = (1 - lr) * self.QTable[prevState][prevAction] + lr * reward
+                self.QTable[str(prevState)][prevAction] = (1 - lr) * self.QTable[str(prevState)][prevAction] + lr * reward
 
                     
     
@@ -437,14 +471,14 @@ class SnakeGame:
                 # if prevLeftRight == 0 and leftRight != 0:
                 #     reward -= 20
                   
-                if curState not in self.QTable:
-                    self.QTable[curState] = {1 : 0.0, 2 : 0.0, 3 : 0.0, 4 : 0.0}
+                if str(curState) not in self.QTable:
+                    self.QTable[str(curState)] = {1 : 0.0, 2 : 0.0, 3 : 0.0, 4 : 0.0}
                     
-                if prevState not in self.QTable:
-                    self.QTable[prevState] = {1 : 0.0, 2 : 0.0, 3 : 0.0, 4 : 0.0}
+                if str(prevState) not in self.QTable:
+                    self.QTable[str(prevState)] = {1 : 0.0, 2 : 0.0, 3 : 0.0, 4 : 0.0}
                 
                     
-                self.QTable[prevState][prevAction] = (1 - lr) * self.QTable[prevState][prevAction] + lr * (reward + discount * max(self.QTable[curState], key=self.QTable[curState].get))
+                self.QTable[str(prevState)][prevAction] = (1 - lr) * self.QTable[str(prevState)][prevAction] + lr * (reward + discount * max(self.QTable[str(curState)], key=self.QTable[str(curState)].get))
         
         
             
