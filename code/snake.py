@@ -398,6 +398,8 @@ class SnakeGame:
             
         if self.gameCount > 600:
             lr = 0.001
+            
+        if self.gameCount > 300:
             discount = 0.001
             
         if not self.learning:
