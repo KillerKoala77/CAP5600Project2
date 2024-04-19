@@ -5,7 +5,7 @@ import json
 class SnakeGame:
     def __init__(self):
         
-        self.learning = False
+        self.learning = True
                 
     
         pygame.init()
@@ -390,14 +390,11 @@ class SnakeGame:
         #lr = 0.02
         lr = 0.7
         reward = 0
-        discount = 0.5
+        discount = 0.8
         
-        if self.gameCount > 200:
+        if self.gameCount > 100:
             lr = 0.4
             discount = 0.2
-            
-        if self.gameCount > 600:
-            lr = 0.001
             
         if self.gameCount > 300:
             discount = 0.001
@@ -406,7 +403,8 @@ class SnakeGame:
             lr = 0.001
             discount = 0.001
         
-        for i in range(len(history) - 1):           
+        for i in range(len(history) - 1):
+            reward = 0      
                 
         # snake is dead, update table
             if snakeDead:
