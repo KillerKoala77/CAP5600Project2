@@ -1,6 +1,9 @@
 import pygame
 import random
 import json
+import argparse
+import sys
+
 
 ################################################################################
 # SnakeGame Class
@@ -8,9 +11,9 @@ import json
 # Handles setting up the game, processing the move to make and running the game
 ################################################################################
 class SnakeGame:
-    def __init__(self, learning):
+    def __init__(self):
         
-        self.learning = learning
+        self.learning = False
                 
         pygame.init()
         
@@ -34,7 +37,7 @@ class SnakeGame:
         self.speedY = 0
         
         # Default snake coordinates and length
-        self.snakeX = self.screenWidth / 4 + 50
+        self.snakeX = self.screenWidth / 2
         self.snakeY = self.screenHeight / 2
         self.snakeLen = 1
         self.snakeBody = []
@@ -53,8 +56,25 @@ class SnakeGame:
         # Default fruit condition
         self.generateNewFruit()
 
-        if not self.learning:
-            self.loadFromFile()
+    def getParameters(self):
+        parser = argparse.ArgumentParser(
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            prog='SnakeAI',
+            description='Watch AI learn to play snake!\n\n Hit the \'k\' key if the snake gets stuck in a loop',
+            epilog='Hisssssss.......')
+
+        parser.add_argument('-l', '--learning', action='store_true',
+                            help='A flag to indicate if the AI will learn from scratch or load a pre-populated Q-Table')
+
+        args = parser.parse_args()
+
+        if args.help:
+            parser.print_help(sys.stderr)
+            sys.exit(1)
+            
+        # Store the argument
+        self.learning = args.learning
+        print("learning: ", self.learning)
 
     ################################################################################
     # Generates a new fruit and ensures it doesn't conflict with the snake body
@@ -72,7 +92,7 @@ class SnakeGame:
     ################################################################################
     def loadFromFile(self):
         self.speed = 30
-        filename = "QTable.json"
+        filename = "QTableWebb.json"
         with open(filename, 'r') as file:
             rawData = json.load(file)
             
@@ -121,6 +141,10 @@ class SnakeGame:
     # continues to take moves and update the snake and game board
     ################################################################################
     def play(self):
+        # If not learning, load Q-Table from file
+        if not self.learning:
+            self.loadFromFile()
+            
         while self.running:
             if not self.gameOver:
                 
@@ -195,7 +219,7 @@ class SnakeGame:
     def reset(self):
         self.speedX = 10
         self.speedY = 0
-        self.snakeX = self.screenWidth / 4 + 50
+        self.snakeX = self.screenWidth / 2
         self.snakeY = self.screenHeight / 2
         self.snakeLen = 1
         self.fruitX = round(random.randint(0, self.screenWidth - 10) / 10) * 10
@@ -351,9 +375,6 @@ class SnakeGame:
     # what allows the AI to learn
     ################################################################################
     def updateQTable(self):
-        prevState = self.history[-1][0]
-        prevAction = self.history[-1][1]
-        
         snakeDead = self.isSnakeDead()
             
         # Reverse history
@@ -381,6 +402,8 @@ class SnakeGame:
             # snake is dead, update table
             if snakeDead:
                 reward = -10
+                prevState = history[0][0]
+                prevAction = history[0][1]
                 
                 if str(prevState) not in self.QTable:
                     self.QTable[str(prevState)] = {1 : 0.0, 2 : 0.0, 3 : 0.0, 4 : 0.0}
@@ -417,7 +440,6 @@ class SnakeGame:
                 if str(curState) not in self.QTable:
                     self.QTable[str(curState)] = {1 : 0.0, 2 : 0.0, 3 : 0.0, 4 : 0.0}
 
-                # pretty sure we can take this out. By neccesity, a prev state was a curstate earlier in the loop, so it would've already been added
                 if str(prevState) not in self.QTable:
                     self.QTable[str(prevState)] = {1 : 0.0, 2 : 0.0, 3 : 0.0, 4 : 0.0}
                 

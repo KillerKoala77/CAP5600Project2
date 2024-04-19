@@ -1,10 +1,10 @@
 import game
 
 # Initialize an instance of Game
-snake = game.SnakeGame(True)
+snake = game.SnakeGame()
 
 # Get parameters from the command line
-#connectM.getGameParameters()
+snake.getParameters()
 
 # Start the game
 snake.play()
