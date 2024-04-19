@@ -2,6 +2,11 @@ import pygame
 import random
 import json
 
+################################################################################
+# SnakeGame Class
+#
+# Handles setting up the game, processing the move to make and running the game
+################################################################################
 class SnakeGame:
     def __init__(self, learning):
         
@@ -31,12 +36,12 @@ class SnakeGame:
         # Default snake coordinates and length
         self.snakeX = self.screenWidth / 4 + 50
         self.snakeY = self.screenHeight / 2
-        self.snakeLen = 4
+        self.snakeLen = 1
         self.snakeBody = []
-        for x in range(4):
-            self.snakeBody.append((self.screenWidth / 4 + ((x * 10) + 10), self.snakeY))
+        # for x in range(4):
+        #     self.snakeBody.append((self.screenWidth / 4 + ((x * 10) + 10), self.snakeY))
+            
         # Snake speed and populate clock
-        #self.speed = 30
         self.speed = 1000
         self.clock = pygame.time.Clock()
         
@@ -50,7 +55,10 @@ class SnakeGame:
 
         if not self.learning:
             self.loadFromFile()
-    
+
+    ################################################################################
+    # Generates a new fruit and ensures it doesn't conflict with the snake body
+    ################################################################################
     def generateNewFruit(self):
         conflict = True
         while conflict:
@@ -58,7 +66,10 @@ class SnakeGame:
             self.fruitY = round(random.randint(0, self.screenHeight - 10) / 10) * 10 
 
             conflict = (self.fruitX, self.fruitY) in self.snakeBody
-
+            
+    ################################################################################
+    # Loads an existing Q table from file
+    ################################################################################
     def loadFromFile(self):
         self.speed = 30
         filename = "QTable.json"
@@ -72,6 +83,10 @@ class SnakeGame:
             self.QTable[stateParam][3] = float(rawData[stateParam]['3'])
             self.QTable[stateParam][4] = float(rawData[stateParam]['4'])
 
+    ################################################################################
+    # Draws the game. Includes setting the caption, drawing the squares, snake,
+    # fruit and score
+    ################################################################################
     def drawGameBoard(self):
         # Generate screen
         self.screen.fill((50,50,50))
@@ -100,12 +115,15 @@ class SnakeGame:
 
         # Update display
         pygame.display.flip()
-        
+
+    ################################################################################
+    # The main game loop. While the game is not over, the loop in this function
+    # continues to take moves and update the snake and game board
+    ################################################################################
     def play(self):
-        # Main game loop
         while self.running:
-            
             if not self.gameOver:
+                
                 # Get next action from current state and Q Table
                 choice = self.getAction()
                 
@@ -141,8 +159,7 @@ class SnakeGame:
                 
                 self.drawGameBoard()
                 
-                self.gameOver = self.isSnakeDead()             
-                
+                self.gameOver = self.isSnakeDead()
                 
                 # Iterate timer
                 self.clock.tick(self.speed)
@@ -154,7 +171,6 @@ class SnakeGame:
                 # 4 - DOWN
                 
                 self.updateQTable()
-                
 
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
@@ -170,19 +186,18 @@ class SnakeGame:
                                 json.dump(self.QTable, file)
                                 self.gameOver = True
                                 self.running = False
-            
-                    
-                        
-                        
             else:
                 self.reset()
-                            
+
+    ################################################################################
+    # Resets all game and AI variables to prepare for the next iteration of the game
+    ################################################################################
     def reset(self):
         self.speedX = 10
         self.speedY = 0
         self.snakeX = self.screenWidth / 4 + 50
         self.snakeY = self.screenHeight / 2
-        self.snakeLen = 4
+        self.snakeLen = 1
         self.fruitX = round(random.randint(0, self.screenWidth - 10) / 10) * 10
         self.fruitY = round(random.randint(0, self.screenHeight - 10) / 10) * 10 
         self.gameOver = False
@@ -192,6 +207,10 @@ class SnakeGame:
         print(self.score)
         self.score = 0
 
+    ################################################################################
+    # Determines if the snake has hit the wall or itself
+    # @return result is returned and is a boolean indicating if the snake is dead
+    ################################################################################
     def isSnakeDead(self):
         result = False
         # Collision with wall
@@ -204,7 +223,18 @@ class SnakeGame:
 
         return result
             
-    
+    ################################################################################
+    # Gets the current state as seen by the snake head.
+    # State consists of the following:
+    #   leftRight - is the fruit to the left or the right of the head
+    #               -1 for left, 1 for right, 0 for equal with the head
+    #   upDown    - is the fruit above or below the head
+    #               -1 for above, 1 for below, 0 for equal with the head
+    #   danger    - a 4 element tuple that indicates if a dangerous block is
+    #               adjacent to the snake head. 1 indicates danger, 0 indicates safe
+    #
+    # @return All three state variables are returned as a 3 element tuple
+    ################################################################################
     def getState(self):
         leftRight = 0 # X relative direction
         upDown = 0 # Y relative direction
@@ -254,7 +284,16 @@ class SnakeGame:
 
         return (leftRight, upDown, tuple(danger))
 
-
+    ################################################################################
+    # Gets the next action the snake will take. This can either be a random move
+    # or a move based on the Q-Table.
+    #
+    # @return an integer indicating which direction the snake will move next
+    #           1 - Left
+    #           2 - Up
+    #           3 - Right
+    #           4 - Down
+    ################################################################################
     def getAction(self):
         
         choices = [1,2,3,4] # R,U,L,D
@@ -270,8 +309,6 @@ class SnakeGame:
         
         newExploreValue = random.uniform(0,1)
         
-        # Restrict epsilon usage later on.... removing now to accelereate testing
-
         # Remove choice that allows snake to immediately double back on itself and die
         if (newExploreValue < epsilon):
             if self.speedX == -10: # Moving left
@@ -306,18 +343,16 @@ class SnakeGame:
         self.moveCount += 1
         self.history.append((state, actionChoice, manDistX, manDistY, self.moveCount))
         
-        #print("Table Action: " + str(actionChoice))
-        #return 4
         return actionChoice
-        
+
+    ################################################################################
+    # Updates the Q-Table after the snake has made its move. Updating the Q-Table
+    # with the results of the move, given the state at the time of the move, is
+    # what allows the AI to learn
+    ################################################################################
     def updateQTable(self):
-        
-        # check for how curState is being defined diff between these two...
-        
         prevState = self.history[-1][0]
         prevAction = self.history[-1][1]
-        
-        curState = self.getState()
         
         snakeDead = self.isSnakeDead()
             
@@ -340,7 +375,6 @@ class SnakeGame:
         else:
             lr = 0.7
             discount = 0.5
-        
         
         for i in range(len(history) - 1):           
             reward = 0
@@ -377,12 +411,13 @@ class SnakeGame:
 
                 # We have found the fruit, reward granted
                 if upDown == 0 and leftRight == 0:
-                    reward += 10
+                    reward = 10
 
                 # Build the QTable if states are not present
                 if str(curState) not in self.QTable:
                     self.QTable[str(curState)] = {1 : 0.0, 2 : 0.0, 3 : 0.0, 4 : 0.0}
-                    
+
+                # pretty sure we can take this out. By neccesity, a prev state was a curstate earlier in the loop, so it would've already been added
                 if str(prevState) not in self.QTable:
                     self.QTable[str(prevState)] = {1 : 0.0, 2 : 0.0, 3 : 0.0, 4 : 0.0}
                 
