@@ -56,6 +56,10 @@ class SnakeGame:
         # Default fruit condition
         self.generateNewFruit()
 
+    ################################################################################
+    # Gets the command line parameters
+    ################################################################################
+    
     def getParameters(self):
         parser = argparse.ArgumentParser(
             formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -67,10 +71,6 @@ class SnakeGame:
                             help='A flag to indicate if the AI will learn from scratch or load a pre-populated Q-Table')
 
         args = parser.parse_args()
-
-        if args.help:
-            parser.print_help(sys.stderr)
-            sys.exit(1)
             
         # Store the argument
         self.learning = args.learning
