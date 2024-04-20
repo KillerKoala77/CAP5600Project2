@@ -15,6 +15,7 @@ class SnakeGame:
     def __init__(self):
         
         self.learning = False
+        self.barriersEnabled = False
                 
         pygame.init()
         
@@ -66,6 +67,10 @@ class SnakeGame:
         
         # Default fruit condition
         self.generateNewFruit()
+        
+        # Default barrier condition
+        if self.barriersEnabled:
+            self.generateNewBarrier()
 
     ################################################################################
     # Gets the command line parameters
@@ -85,8 +90,40 @@ class SnakeGame:
             
         # Store the argument
         self.learning = args.learning
-        self.learning = True###### Delete this
+        #self.learning = True###### Delete this
         print("learning: ", self.learning)
+        
+        
+        
+    ################################################################################
+    # Generates new barrier set and ensures they don't conflict with snake body
+    ################################################################################
+    def generateNewBarrier(self):
+        conflict = True
+        while conflict:
+            self.barrier = []
+            self.barrierTime = time.perf_counter()
+            baseX1 = round(random.randint(0, self.screenWidth - 10) / 10) * 10 
+            baseY1 = round(random.randint(0, self.screenHeight - 120) / 10) * 10 
+            
+            baseX2 = round(random.randint(0, self.screenWidth - 10) / 10) * 10 
+            baseY2 = round(random.randint(0, self.screenHeight - 120) / 10) * 10 
+            
+            baseX3 = round(random.randint(0, self.screenWidth - 10) / 10) * 10 
+            baseY3 = round(random.randint(0, self.screenHeight - 120) / 10) * 10 
+            
+            baseX4 = round(random.randint(0, self.screenWidth - 10) / 10) * 10 
+            baseY4 = round(random.randint(0, self.screenHeight - 120) / 10) * 10 
+            
+            offset = 0
+            for i in range(6):
+                self.barrier.append((baseX1, baseY1 + offset))
+                self.barrier.append((baseX2, baseY2 + offset))
+                self.barrier.append((baseX3, baseY3 + offset))
+                self.barrier.append((baseX4, baseY4 + offset))
+                offset += 10
+            
+            conflict = (self.snakeX, self.snakeY) in self.barrier
 
     ################################################################################
     # Generates a new fruit and ensures it doesn't conflict with the snake body
@@ -97,14 +134,15 @@ class SnakeGame:
             self.fruitX = round(random.randint(0, self.screenWidth - 10) / 10) * 10
             self.fruitY = round(random.randint(0, self.screenHeight - 10) / 10) * 10 
 
-            conflict = (self.fruitX, self.fruitY) in self.snakeBody
+            conflict = ((self.fruitX, self.fruitY) in self.snakeBody) or ((self.fruitX, self.fruitY) in self.barrier)
             
     ################################################################################
     # Loads an existing Q table from file
     ################################################################################
     def loadFromFile(self):
         self.speed = 30
-        filename = "QTableWebb.json"
+        #filename = "QTableWebb.json"
+        filename = "QTable_v3.json"
         with open(filename, 'r') as file:
             rawData = json.load(file)
             
@@ -162,7 +200,7 @@ class SnakeGame:
             self.loadFromFile()
             
         self.start = time.perf_counter()
-        barrierTime = time.perf_counter()
+        self.barrierTime = time.perf_counter()
             
         while self.running:
             if not self.gameOver:
@@ -194,7 +232,7 @@ class SnakeGame:
                 self.loopArray.append((self.snakeX, self.snakeY))
                 
                 # Check for loop behavior
-                if time.perf_counter() - self.start > 3 and self.loopArray.count((self.snakeX, self.snakeY)) > 5:
+                if time.perf_counter() - self.start > 1 and self.loopArray.count((self.snakeX, self.snakeY)) > 5:
                     self.looping = True
                     print("looping detected - terminate current run")
                         
@@ -207,25 +245,13 @@ class SnakeGame:
                     self.snakeLen += 1
                     self.score += 1
                     self.generateNewFruit()
+                    if self.barriersEnabled:
+                        self.generateNewBarrier()
                     
                     # Reset loop control
                     self.loopArray = []
-                    self.start = time.perf_counter()
+                    self.start = time.perf_counter()                                    
                     
-                # Change barrier
-                if time.perf_counter() - self.barrierTime >= 5:
-                    self.barrier = []
-                    self.barrierTime = time.perf_counter()
-                    baseX = round(random.randint(0, self.screenWidth - 10) / 10) * 10 
-                    baseY = round(random.randint(0, self.screenHeight - 80) / 10) * 10 
-                                    
-                    offset = 0
-                    for i in range(4):
-                        self.barrier.append((baseX, baseY + offset))
-                        offset += 10
-                    
-                    
-                
                 self.drawGameBoard()
                 
                 self.gameOver = self.isSnakeDead()
@@ -249,7 +275,7 @@ class SnakeGame:
                             self.gameOver = True
                             break
                         if event.key == pygame.K_s:
-                            filename = "QTable.json"
+                            filename = "QTable_v3.json"
                             print(self.QTable)
                             with open(filename, 'w') as file:
                                 json.dump(self.QTable, file)
@@ -277,6 +303,8 @@ class SnakeGame:
         self.score = 0
         self.looping = False
         self.start = time.perf_counter()
+        if self.barriersEnabled:
+            self.generateNewBarrier()
 
     ################################################################################
     # Determines if the snake has hit the wall or itself
@@ -289,9 +317,15 @@ class SnakeGame:
             result = True
         if self.snakeY < 0 or self.snakeY > self.screenHeight - 10:
             result = True
+            
+        # Collision with tail
         if(self.snakeX, self.snakeY) in self.snakeBody:
             result = True
         if self.looping:
+            result = True
+            
+        # Collision with barrier
+        if (self.snakeX, self.snakeY) in self.barrier:
             result = True
 
         return result
@@ -353,6 +387,19 @@ class SnakeGame:
             danger[1] = 1
 
         if (self.snakeX, self.snakeY + 10) in self.snakeBody: # Down
+            danger[3] = 1
+            
+        # Check for barrier
+        if (self.snakeX - 10, self.snakeY) in self.barrier: # Left
+            danger[0] = 1
+
+        if (self.snakeX + 10, self.snakeY) in self.barrier: # Right
+            danger[2] = 1
+
+        if (self.snakeX, self.snakeY - 10) in self.barrier: # Up
+            danger[1] = 1
+
+        if (self.snakeX, self.snakeY + 10) in self.barrier: # Down
             danger[3] = 1
 
         return (leftRight, upDown, tuple(danger))
@@ -433,8 +480,10 @@ class SnakeGame:
         discount = 0.5
 
         if not self.learning:
+            lr = 0.4
+            discount = 0.2
+        elif self.gameCount > 600:
             lr = 0.001
-            discount = 0.001
         elif self.gameCount > 300:
             discount = 0.001
         elif self.gameCount > 200:
