@@ -24,7 +24,6 @@ class SnakeGame:
         self.score = 0
         self.moveCount = 0
         self.loopArray = []
-        self.looping = False
         
         # Set window size
         self.screenWidth = 400
@@ -51,10 +50,19 @@ class SnakeGame:
         self.speed = 1000
         self.clock = pygame.time.Clock()
         
+        # Loop control
+        self.looping = False
+        self.start = time.perf_counter()
+        
+        # Barrier locations
+        self.barrier = []
+        self.barrierTime = time.perf_counter()
+        
         # RGB values
         self.green = (0, 250,0)
         self.red = (250, 0, 0)
         self.yellow = (250, 250, 0)
+        self.purple = (128, 0, 128)
         
         # Default fruit condition
         self.generateNewFruit()
@@ -131,6 +139,10 @@ class SnakeGame:
             
         # Draw fruit
         pygame.draw.rect(self.screen, self.red, [self.fruitX, self.fruitY, 10, 10])
+        
+        # Draw barrier
+        for (bX, bY) in self.barrier:
+            pygame.draw.rect(self.screen, self.purple, [bX, bY, 10, 10])
 
         # Draw score
         font = pygame.font.SysFont(None, 35)
@@ -149,7 +161,8 @@ class SnakeGame:
         if not self.learning:
             self.loadFromFile()
             
-        start = time.perf_counter()
+        self.start = time.perf_counter()
+        barrierTime = time.perf_counter()
             
         while self.running:
             if not self.gameOver:
@@ -181,7 +194,7 @@ class SnakeGame:
                 self.loopArray.append((self.snakeX, self.snakeY))
                 
                 # Check for loop behavior
-                if time.perf_counter() - start > 3 and self.loopArray.count((self.snakeX, self.snakeY)) > 5:
+                if time.perf_counter() - self.start > 3 and self.loopArray.count((self.snakeX, self.snakeY)) > 5:
                     self.looping = True
                     print("looping detected - terminate current run")
                         
@@ -197,7 +210,20 @@ class SnakeGame:
                     
                     # Reset loop control
                     self.loopArray = []
-                    start = time.perf_counter()
+                    self.start = time.perf_counter()
+                    
+                # Change barrier
+                if time.perf_counter() - self.barrierTime >= 5:
+                    self.barrier = []
+                    self.barrierTime = time.perf_counter()
+                    baseX = round(random.randint(0, self.screenWidth - 10) / 10) * 10 
+                    baseY = round(random.randint(0, self.screenHeight - 80) / 10) * 10 
+                                    
+                    offset = 0
+                    for i in range(4):
+                        self.barrier.append((baseX, baseY + offset))
+                        offset += 10
+                    
                     
                 
                 self.drawGameBoard()
@@ -250,6 +276,7 @@ class SnakeGame:
         print(self.score)
         self.score = 0
         self.looping = False
+        self.start = time.perf_counter()
 
     ################################################################################
     # Determines if the snake has hit the wall or itself
