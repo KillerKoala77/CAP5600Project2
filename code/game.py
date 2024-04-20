@@ -3,6 +3,7 @@ import random
 import json
 import argparse
 import sys
+import time
 
 
 ################################################################################
@@ -22,6 +23,8 @@ class SnakeGame:
         self.gameCount = 0
         self.score = 0
         self.moveCount = 0
+        self.loopArray = []
+        self.looping = False
         
         # Set window size
         self.screenWidth = 400
@@ -74,6 +77,7 @@ class SnakeGame:
             
         # Store the argument
         self.learning = args.learning
+        self.learning = True###### Delete this
         print("learning: ", self.learning)
 
     ################################################################################
@@ -145,6 +149,8 @@ class SnakeGame:
         if not self.learning:
             self.loadFromFile()
             
+        start = time.perf_counter()
+            
         while self.running:
             if not self.gameOver:
                 
@@ -171,6 +177,14 @@ class SnakeGame:
                 self.snakeX += self.speedX
                 self.snakeY += self.speedY
                 
+                # Add to loop control array
+                self.loopArray.append((self.snakeX, self.snakeY))
+                
+                # Check for loop behavior
+                if time.perf_counter() - start > 3 and self.loopArray.count((self.snakeX, self.snakeY)) > 5:
+                    self.looping = True
+                    print("looping detected - terminate current run")
+                        
                 # Remove last tail location, if a fruit wasn't eaten
                 if len(self.snakeBody) > self.snakeLen:
                     del self.snakeBody[:-self.snakeLen]
@@ -180,6 +194,11 @@ class SnakeGame:
                     self.snakeLen += 1
                     self.score += 1
                     self.generateNewFruit()
+                    
+                    # Reset loop control
+                    self.loopArray = []
+                    start = time.perf_counter()
+                    
                 
                 self.drawGameBoard()
                 
@@ -230,6 +249,7 @@ class SnakeGame:
         self.moveCount = 0
         print(self.score)
         self.score = 0
+        self.looping = False
 
     ################################################################################
     # Determines if the snake has hit the wall or itself
@@ -243,7 +263,9 @@ class SnakeGame:
         if self.snakeY < 0 or self.snakeY > self.screenHeight - 10:
             result = True
         if(self.snakeX, self.snakeY) in self.snakeBody:
-            result = True  
+            result = True
+        if self.looping:
+            result = True
 
         return result
             
@@ -386,8 +408,6 @@ class SnakeGame:
         if not self.learning:
             lr = 0.001
             discount = 0.001
-        elif self.gameCount > 600:
-            lr = 0.001
         elif self.gameCount > 300:
             discount = 0.001
         elif self.gameCount > 200:
@@ -405,9 +425,11 @@ class SnakeGame:
                 prevState = history[0][0]
                 prevAction = history[0][1]
                 
+                # Add state if not already in dict
                 if str(prevState) not in self.QTable:
                     self.QTable[str(prevState)] = {1 : 0.0, 2 : 0.0, 3 : 0.0, 4 : 0.0}
                     
+                # Bellman equation
                 self.QTable[str(prevState)][prevAction] = (1 - lr) * self.QTable[str(prevState)][prevAction] + lr * reward
             else:
                 
@@ -443,7 +465,7 @@ class SnakeGame:
                 if str(prevState) not in self.QTable:
                     self.QTable[str(prevState)] = {1 : 0.0, 2 : 0.0, 3 : 0.0, 4 : 0.0}
                 
-                    
+                # Bellman equation
                 self.QTable[str(prevState)][prevAction] = (1 - lr) * self.QTable[str(prevState)][prevAction] + lr * (reward + discount * max(self.QTable[str(curState)], key=self.QTable[str(curState)].get))
         
 
