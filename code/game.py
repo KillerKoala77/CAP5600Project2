@@ -15,7 +15,7 @@ class SnakeGame:
     def __init__(self):
         
         self.learning = False
-        self.barriersEnabled = False
+        self.barriersEnabled = True
                 
         pygame.init()
         
@@ -242,11 +242,11 @@ class SnakeGame:
 
                 # Update fruit coordinates
                 if self.snakeX == self.fruitX and self.snakeY == self.fruitY:
+                    if self.barriersEnabled:
+                        self.generateNewBarrier()
                     self.snakeLen += 1
                     self.score += 1
                     self.generateNewFruit()
-                    if self.barriersEnabled:
-                        self.generateNewBarrier()
                     
                     # Reset loop control
                     self.loopArray = []
@@ -485,7 +485,7 @@ class SnakeGame:
         elif self.gameCount > 600:
             lr = 0.001
         elif self.gameCount > 300:
-            discount = 0.001
+            discount = 0.4
         elif self.gameCount > 200:
             lr = 0.4
             discount = 0.2
