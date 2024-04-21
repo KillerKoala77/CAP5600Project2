@@ -19,6 +19,7 @@ class SnakeGame:
                 
         pygame.init()
         
+        # Class variables
         self.QTable = {}
         self.history = []
         self.gameCount = 0
@@ -44,8 +45,6 @@ class SnakeGame:
         self.snakeY = self.screenHeight / 2
         self.snakeLen = 1
         self.snakeBody = []
-        # for x in range(4):
-        #     self.snakeBody.append((self.screenWidth / 4 + ((x * 10) + 10), self.snakeY))
             
         # Snake speed and populate clock
         self.speed = 1000
@@ -90,7 +89,6 @@ class SnakeGame:
             
         # Store the argument
         self.learning = args.learning
-        #self.learning = True###### Delete this
         print("learning: ", self.learning)
         
         
@@ -103,16 +101,16 @@ class SnakeGame:
         while conflict:
             self.barrier = []
             self.barrierTime = time.perf_counter()
-            baseX1 = round(random.randint(0, self.screenWidth - 10) / 10) * 10 
+            baseX1 = round(random.randint(0, self.screenWidth - 120) / 10) * 10 
             baseY1 = round(random.randint(0, self.screenHeight - 120) / 10) * 10 
             
-            baseX2 = round(random.randint(0, self.screenWidth - 10) / 10) * 10 
+            baseX2 = round(random.randint(0, self.screenWidth - 120) / 10) * 10 
             baseY2 = round(random.randint(0, self.screenHeight - 120) / 10) * 10 
             
-            baseX3 = round(random.randint(0, self.screenWidth - 10) / 10) * 10 
+            baseX3 = round(random.randint(0, self.screenWidth - 120) / 10) * 10 
             baseY3 = round(random.randint(0, self.screenHeight - 120) / 10) * 10 
             
-            baseX4 = round(random.randint(0, self.screenWidth - 10) / 10) * 10 
+            baseX4 = round(random.randint(0, self.screenWidth - 120) / 10) * 10 
             baseY4 = round(random.randint(0, self.screenHeight - 120) / 10) * 10 
             
             offset = 0
@@ -141,11 +139,14 @@ class SnakeGame:
     ################################################################################
     def loadFromFile(self):
         self.speed = 30
+        
+        # Alternative candidate Q Tables
         #filename = "QTableWebb.json"
         filename = "QTable_v3.json"
         with open(filename, 'r') as file:
             rawData = json.load(file)
             
+        # Data type conversions
         for stateParam in rawData:
             self.QTable[stateParam] = {1 : 0.0, 2 : 0.0, 3 : 0.0, 4 : 0.0}
             self.QTable[stateParam][1] = float(rawData[stateParam]['1'])
@@ -420,7 +421,7 @@ class SnakeGame:
         epsilon = 0.1
         actionChoice = 0
         
-        if self.gameCount > 100:
+        if self.gameCount > 200:
             epsilon = 0
         if not self.learning:
             epsilon = 0
@@ -444,7 +445,6 @@ class SnakeGame:
                 choices.remove(4) # Remove up option
             
             actionChoice = random.choice(choices)
-            #print("Random Action: " + str(actionChoice))
             
         else:
             
@@ -454,8 +454,6 @@ class SnakeGame:
             actionVals = self.QTable[str(state)]
             maxVal = max(actionVals, key=actionVals.get)
             actionChoice = maxVal
-            
-        # should manhatten distance take into account the move that was just decided upon?
             
         manDistX = abs(self.snakeX - self.fruitX)
         manDistY = abs(self.snakeY - self.fruitY)
@@ -476,22 +474,8 @@ class SnakeGame:
         # Reverse history
         history = self.history[::-1]
         
-        lr = 0.7
-        discount = 0.5
-
-        if not self.learning:
-            lr = 0.4
-            discount = 0.2
-        elif self.gameCount > 600:
-            lr = 0.001
-        elif self.gameCount > 300:
-            discount = 0.4
-        elif self.gameCount > 200:
-            lr = 0.4
-            discount = 0.2
-        else:
-            lr = 0.7
-            discount = 0.5
+        lr = 0.8
+        discount = 0.3        
         
         for i in range(len(history) - 1):           
             reward = 0
@@ -509,11 +493,10 @@ class SnakeGame:
                 self.QTable[str(prevState)][prevAction] = (1 - lr) * self.QTable[str(prevState)][prevAction] + lr * reward
             else:
                 
+                # Retrieve states, actions, and value data
                 curState = history[i][0]
                 prevState = history[i+1][0]
                 prevAction = history[i+1][1]
-                
-                # manX, manY, leftRight, upDown, danger
                 
                 prevManX = history[i+1][2]
                 prevManY = history[i+1][3]
