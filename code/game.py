@@ -119,8 +119,8 @@ class SnakeGame:
             for i in range(6):
                 self.barrier.append((baseX1, baseY1 + offset))
                 self.barrier.append((baseX2, baseY2 + offset))
-                self.barrier.append((baseX3, baseY3 + offset))
-                self.barrier.append((baseX4, baseY4 + offset))
+                self.barrier.append((baseX3 + offset, baseY3))
+                self.barrier.append((baseX4 + offset, baseY4))
                 offset += 10
             
             conflict = (self.snakeX, self.snakeY) in self.barrier
